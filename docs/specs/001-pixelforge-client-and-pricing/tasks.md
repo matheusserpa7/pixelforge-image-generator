@@ -11,5 +11,5 @@ Status: **approved** · 2026-11-16 · Tech spec: [tech-spec.md](tech-spec.md)
 - [x] **T2. Estimate and actual cost.** `CostEstimator`, `ActualCost`, `CostEstimate`, `GenerationCost`,
       and the float-token architecture check on Billing and Pixelforge. Tech spec: Behaviour in code
       (Estimate, Actual cost). Reviewer: Opus.
-- [ ] **T3. Cached pricing.** `GetCachedPricing`, `PricingUnavailable`, `billing.pricing_cache_seconds`.
+- [x] **T3. Cached pricing.** `GetCachedPricing`, `PricingUnavailable`, `billing.pricing_cache_seconds`.
       Tech spec: Behaviour in code (Cached pricing). Reviewer: Opus.

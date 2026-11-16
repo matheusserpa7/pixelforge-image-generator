@@ -10,4 +10,9 @@ return [
     */
     'markup_percent' => (string) env('BILLING_MARKUP_PERCENT', '25'),
 
+    /*
+    | How long GET /v1/pricing responses stay in the application cache (seconds).
+    */
+    'pricing_cache_seconds' => (int) env('BILLING_PRICING_CACHE_SECONDS', 3600),
+
 ];
