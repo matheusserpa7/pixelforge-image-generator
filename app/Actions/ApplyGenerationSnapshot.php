@@ -1,0 +1,180 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Actions;
+
+use App\Data\PixelforgeGeneration;
+use App\Data\TokenUsage;
+use App\Enums\GenerationStatus;
+use App\Enums\SnapshotOutcome;
+use App\Models\Generation;
+use App\Models\LedgerEntry;
+use App\Services\Billing\ActualCost;
+use App\Services\Pixelforge\GenerationFailureMessage;
+use Carbon\CarbonImmutable;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
+use LogicException;
+
+final class ApplyGenerationSnapshot
+{
+    public function handle(string $generationId, PixelforgeGeneration $snapshot): SnapshotOutcome
+    {
+        return DB::transaction(function () use ($generationId, $snapshot): SnapshotOutcome {
+            $generation = Generation::query()
+                ->whereKey($generationId)
+                ->lockForUpdate()
+                ->first();
+
+            if ($generation === null) {
+                return SnapshotOutcome::Ignored;
+            }
+
+            if ($generation->provider_id !== null && $generation->provider_id !== $snapshot->id) {
+                return SnapshotOutcome::Ignored;
+            }
+
+            if ($generation->status->isFinal()) {
+                return SnapshotOutcome::Ignored;
+            }
+
+            if ($snapshot->status === GenerationStatus::Succeeded && $snapshot->usage === null) {
+                return SnapshotOutcome::Incomplete;
+            }
+
+            if ($snapshot->status->rank() <= $generation->status->rank()) {
+                return $this->fillNullsOnly($generation, $snapshot);
+            }
+
+            return match ($snapshot->status) {
+                GenerationStatus::Processing => $this->applyProcessing($generation, $snapshot),
+                GenerationStatus::Failed => $this->applyFailed($generation, $snapshot),
+                GenerationStatus::Succeeded => $this->applySucceeded($generation, $snapshot),
+                GenerationStatus::Queued => $this->fillNullsOnly($generation, $snapshot),
+            };
+        });
+    }
+
+    private function fillNullsOnly(Generation $generation, PixelforgeGeneration $snapshot): SnapshotOutcome
+    {
+        $changed = false;
+
+        if ($generation->provider_id === null) {
+            $generation->provider_id = $snapshot->id;
+            $changed = true;
+        }
+
+        if ($generation->rates === null) {
+            $generation->rates = $snapshot->rates->toStoredArray();
+            $changed = true;
+        }
+
+        if ($generation->provider_created_at === null) {
+            $generation->provider_created_at = self::toCarbon($snapshot->createdAt);
+            $changed = true;
+        }
+
+        if ($generation->provider_started_at === null && $snapshot->startedAt !== null) {
+            $generation->provider_started_at = self::toCarbon($snapshot->startedAt);
+            $changed = true;
+        }
+
+        if ($generation->provider_completed_at === null && $snapshot->completedAt !== null) {
+            $generation->provider_completed_at = self::toCarbon($snapshot->completedAt);
+            $changed = true;
+        }
+
+        if ($changed) {
+            $generation->save();
+        }
+
+        return $changed ? SnapshotOutcome::Applied : SnapshotOutcome::Ignored;
+    }
+
+    private function applyProcessing(Generation $generation, PixelforgeGeneration $snapshot): SnapshotOutcome
+    {
+        $generation->status = GenerationStatus::Processing;
+        $generation->provider_id = $snapshot->id;
+        $generation->rates = $snapshot->rates->toStoredArray();
+        $this->applyProviderTimestamps($generation, $snapshot);
+        $generation->save();
+
+        return SnapshotOutcome::Applied;
+    }
+
+    private function applyFailed(Generation $generation, PixelforgeGeneration $snapshot): SnapshotOutcome
+    {
+        $errorCode = $snapshot->error !== null ? $snapshot->error->code : 'generation_failed';
+
+        $generation->status = GenerationStatus::Failed;
+        $generation->provider_id = $snapshot->id;
+        $generation->rates = $snapshot->rates->toStoredArray();
+        $this->applyProviderTimestamps($generation, $snapshot);
+        $generation->error_code = $errorCode;
+        $generation->error_message = GenerationFailureMessage::forCode($errorCode);
+        $generation->save();
+
+        return SnapshotOutcome::Applied;
+    }
+
+    private function applySucceeded(Generation $generation, PixelforgeGeneration $snapshot): SnapshotOutcome
+    {
+        $usage = $snapshot->usage;
+
+        if (! $usage instanceof TokenUsage) {
+            throw new LogicException('Succeeded snapshot without usage should not reach applySucceeded.');
+        }
+
+        $markupPercent = config()->string('billing.markup_percent');
+
+        $cost = ActualCost::calculate(
+            $usage,
+            $snapshot->rates,
+            $markupPercent,
+        );
+
+        LedgerEntry::query()->create([
+            'generation_id' => $generation->id,
+            'user_id' => $generation->user_id,
+            'provider_cost_nanos' => $cost->providerCost->nanos,
+            'charge_nanos' => $cost->charge->nanos,
+            'markup_percent' => $markupPercent,
+        ]);
+
+        $generation->status = GenerationStatus::Succeeded;
+        $generation->provider_id = $snapshot->id;
+        $generation->provider_cost_nanos = $cost->providerCost->nanos;
+        $generation->charge_nanos = $cost->charge->nanos;
+        $generation->rates = $snapshot->rates->toStoredArray();
+        $generation->usage = $usage->toStoredArray();
+        $generation->image_url = $snapshot->imageUrl;
+        $generation->image_url_expires_at = self::toCarbon($snapshot->imageUrlExpiresAt);
+        $this->applyProviderTimestamps($generation, $snapshot);
+        $generation->save();
+
+        return SnapshotOutcome::Applied;
+    }
+
+    private function applyProviderTimestamps(Generation $generation, PixelforgeGeneration $snapshot): void
+    {
+        $generation->provider_created_at = self::toCarbon($snapshot->createdAt);
+
+        if ($snapshot->startedAt !== null) {
+            $generation->provider_started_at = self::toCarbon($snapshot->startedAt);
+        }
+
+        if ($snapshot->completedAt !== null) {
+            $generation->provider_completed_at = self::toCarbon($snapshot->completedAt);
+        }
+    }
+
+    private static function toCarbon(?CarbonImmutable $value): ?Carbon
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        return Carbon::instance($value);
+    }
+}

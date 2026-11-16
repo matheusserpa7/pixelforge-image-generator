@@ -7,7 +7,7 @@ Status: **approved** · 2026-11-16 · Tech spec: [tech-spec.md](tech-spec.md)
       `GenerationController`, `POST /generations`, and `CreateGeneration` through the insert. Store the
       estimate. Do not dispatch a job and do not call `PixelforgeClient::create`. Tech spec: Tables
       (`generations`), `GenerationPolicy`, Behaviour in code (Create, task T1). Reviewer: Opus.
-- [ ] **T2. Status and the ledger.** `GenerationStatus::rank`, `ledger_entries` migration, `LedgerEntry`
+- [x] **T2. Status and the ledger.** `GenerationStatus::rank`, `ledger_entries` migration, `LedgerEntry`
       (append-only), `Generation::ledgerEntry`, `toStoredArray` / `fromStoredArray` on `GenerationRates`
       and `TokenUsage`, `SnapshotOutcome`, `GenerationFailureMessage`, `ApplyGenerationSnapshot`,
       `FailGeneration`. Tech spec: Tables (`ledger_entries`), `GenerationStatus::rank`, Stored rates and

@@ -22,4 +22,13 @@ enum GenerationStatus: string
     {
         return $this === self::Succeeded || $this === self::Failed;
     }
+
+    public function rank(): int
+    {
+        return match ($this) {
+            self::Queued => 0,
+            self::Processing => 1,
+            self::Succeeded, self::Failed => 2,
+        };
+    }
 }

@@ -17,3 +17,12 @@ it('treats only succeeded and failed as final', function (GenerationStatus $stat
     [GenerationStatus::Succeeded, true],
     [GenerationStatus::Failed, true],
 ]);
+
+it('ranks queued lowest, processing in the middle, and both finals at the top', function (GenerationStatus $status, int $rank) {
+    expect($status->rank())->toBe($rank);
+})->with([
+    [GenerationStatus::Queued, 0],
+    [GenerationStatus::Processing, 1],
+    [GenerationStatus::Succeeded, 2],
+    [GenerationStatus::Failed, 2],
+]);
