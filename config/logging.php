@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Monolog\Formatter\JsonFormatter;
 use Monolog\Handler\NullHandler;
 use Monolog\Handler\StreamHandler;
 use Monolog\Handler\SyslogUdpHandler;
@@ -101,6 +102,19 @@ return [
                 'port' => env('PAPERTRAIL_PORT'),
                 'connectionString' => 'tls://'.env('PAPERTRAIL_URL').':'.env('PAPERTRAIL_PORT'),
             ],
+            'processors' => [PsrLogMessageProcessor::class],
+        ],
+
+        // One JSON object per line on stdout, collected by Docker (docs/adr/0019).
+        // Laravel's Context (request_id, user_id, ...) is added to every record.
+        'json' => [
+            'driver' => 'monolog',
+            'level' => env('LOG_LEVEL', 'debug'),
+            'handler' => StreamHandler::class,
+            'handler_with' => [
+                'stream' => 'php://stdout',
+            ],
+            'formatter' => JsonFormatter::class,
             'processors' => [PsrLogMessageProcessor::class],
         ],
 

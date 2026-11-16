@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\HealthController;
+use App\Http\Middleware\AssignRequestContext;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\SecurityHeaders;
@@ -11,14 +13,16 @@ use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use Sentry\Laravel\Integration;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
         commands: __DIR__.'/../routes/console.php',
-        health: '/up',
         // Stateless routes: outside the `web` group, so no session and no CSRF.
         then: function (): void {
+            Route::get('health', HealthController::class)->name('health');
+
             Route::middleware('throttle:webhooks')
                 ->prefix('webhooks')
                 ->name('webhooks.')
@@ -35,7 +39,10 @@ return Application::configure(basePath: dirname(__DIR__))
             '192.168.0.0/16',
         ]);
 
-        $middleware->append(SecurityHeaders::class);
+        $middleware->append([
+            AssignRequestContext::class,
+            SecurityHeaders::class,
+        ]);
 
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
 
@@ -46,6 +53,9 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        // Reports to Sentry only when SENTRY_LARAVEL_DSN is set; a no-op otherwise.
+        Integration::handles($exceptions);
+
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );

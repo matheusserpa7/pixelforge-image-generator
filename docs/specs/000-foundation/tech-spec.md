@@ -11,6 +11,8 @@ Horizon 5 · Pulse 1 · brick/math 1.
 - Copy the official starter kit (`laravel/vue-starter-kit`, main branch), rename the package to
   `pixelforge-studio`, run `php artisan install:features` keeping only `registration` (ADR 0020).
 - Remove the Vite+ `lint`/`fmt` sections; add ESLint and Prettier (ADR 0018).
+- Inertia SSR off (`INERTIA_SSR_ENABLED=false` by default): no SSR process runs in the containers.
+- Laravel's built-in `/up` route is replaced by `/health` (below).
 
 ## Docker (ADR 0016)
 
@@ -68,11 +70,14 @@ Horizon 5 · Pulse 1 · brick/math 1.
 - `SecurityHeaders` global middleware: `Content-Security-Policy` with a per-request nonce (Vite
   `useCspNonce`, plus the Vite dev server origin when hot), `X-Content-Type-Options: nosniff`,
   `Referrer-Policy: strict-origin-when-cross-origin`, `X-Frame-Options: DENY`,
-  `Permissions-Policy`, and `Strict-Transport-Security` in production only.
+  `Permissions-Policy`, and `Strict-Transport-Security` in production only. Fonts are self-hosted
+  by `laravel-vite-plugin`. Horizon and Pulse ship inline scripts without nonces, so their
+  admin-only paths get every header except the CSP.
 - Session cookie `Secure` in production (`SESSION_SECURE_COOKIE`), `HttpOnly` always, `SameSite=lax`.
 - Trusted proxies: private network ranges (Docker network, reverse proxy on the host).
 - Rate limiters in `AppServiceProvider`: `generations` (10/min per user, used by spec 004) and
-  `webhooks` (120/min per IP). Fortify keeps its `login` limiter (5/min per email + IP).
+  `webhooks` (300/min per IP; a rejected delivery is retried by Pixelforge). Fortify keeps its
+  `login` limiter (5/min per email + IP).
 - Stateless routes registered in `bootstrap/app.php` (`then:`), outside the `web` group: `/health`
   and the `routes/webhooks.php` group (`/webhooks/*`, `throttle:webhooks`, empty until spec 003).
 - `users.is_admin` (boolean, default false); `Gate::define('admin')`; `viewHorizon` and `viewPulse`
@@ -81,9 +86,9 @@ Horizon 5 · Pulse 1 · brick/math 1.
 ## Observability
 
 - `logging.channels.json`: Monolog `StreamHandler` on `php://stdout` with `JsonFormatter`.
-- `AssignRequestContext` middleware (web group and stateless routes): `request_id` from
-  `X-Request-Id` or a UUID, `user_id` when authenticated, echoed back as `X-Request-Id`. Laravel
-  `Context` adds it to every log line and dehydrates it into queued jobs.
+- `AssignRequestContext` global middleware: `request_id` from a safe `X-Request-Id` or a UUID,
+  echoed back as `X-Request-Id`. An `Authenticated` event listener adds `user_id`. Laravel
+  `Context` adds both to every log line and dehydrates them into queued jobs.
 - `HealthController`: `SELECT 1` and Redis `PING`; `200 {"status":"ok","checks":{…}}` or `503`.
 - Horizon (one `default` supervisor), Pulse (database storage, Redis ingest not needed yet),
   `horizon:snapshot` every five minutes in the scheduler.
@@ -107,4 +112,5 @@ Horizon 5 · Pulse 1 · brick/math 1.
 ## Risks
 
 - Vite+ is new; if it misbehaves in Docker we fall back to plain Vite (record an ADR).
-- Pulse uses Livewire, which needs inline scripts; the CSP nonce must be passed to it.
+- File change events do not cross Docker Desktop bind mounts on Windows, so Vite polls (1 s,
+  limited to the folders it needs). Without that limit polling slowed PHP requests to seconds.

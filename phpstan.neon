@@ -11,3 +11,7 @@ parameters:
         - routes/
 
     level: max
+
+    # Published unchanged from laravel/pulse; analysed upstream.
+    excludePaths:
+        - database/migrations/*_create_pulse_tables.php

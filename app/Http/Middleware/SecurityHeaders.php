@@ -15,6 +15,9 @@ use Symfony\Component\HttpFoundation\Response;
  * Scripts must carry the per-request nonce that @vite and the layout print,
  * so injected inline scripts cannot run. Styles allow 'unsafe-inline' because
  * Vue components set style attributes, which cannot carry a nonce.
+ *
+ * Horizon and Pulse ship inline scripts without nonces, so their admin-only
+ * dashboards get every header except the CSP.
  */
 final class SecurityHeaders
 {
@@ -25,7 +28,10 @@ final class SecurityHeaders
         /** @var Response $response */
         $response = $next($request);
 
-        $response->headers->set('Content-Security-Policy', $this->contentSecurityPolicy($nonce));
+        if (! $this->isInternalDashboard($request)) {
+            $response->headers->set('Content-Security-Policy', $this->contentSecurityPolicy($nonce));
+        }
+
         $response->headers->set('X-Content-Type-Options', 'nosniff');
         $response->headers->set('X-Frame-Options', 'DENY');
         $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
@@ -36,6 +42,13 @@ final class SecurityHeaders
         }
 
         return $response;
+    }
+
+    private function isInternalDashboard(Request $request): bool
+    {
+        $paths = [config()->string('horizon.path'), config()->string('pulse.path')];
+
+        return collect($paths)->contains(fn (string $path): bool => $request->is($path, "{$path}/*"));
     }
 
     private function contentSecurityPolicy(string $nonce): string

@@ -36,7 +36,7 @@ COPY --chmod=755 docker/entrypoint.sh /usr/local/bin/entrypoint
 EXPOSE 8080
 
 HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=6 \
-    CMD php -r "exit(@file_get_contents('http://127.0.0.1:8080/up') === false ? 1 : 0);"
+    CMD php -r "exit(@file_get_contents('http://127.0.0.1:8080/health') === false ? 1 : 0);"
 
 ENTRYPOINT ["entrypoint"]
 CMD ["frankenphp", "run", "--config", "/etc/frankenphp/Caddyfile"]

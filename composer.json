@@ -16,8 +16,11 @@
         "inertiajs/inertia-laravel": "^3.0",
         "laravel/fortify": "^1.37.2",
         "laravel/framework": "^13.17",
+        "laravel/horizon": "^5.51",
+        "laravel/pulse": "^1.10",
         "laravel/tinker": "^3.0",
-        "laravel/wayfinder": "^0.1.14"
+        "laravel/wayfinder": "^0.1.14",
+        "sentry/sentry-laravel": "^4.30"
     },
     "require-dev": {
         "fakerphp/faker": "^1.24",

@@ -12,7 +12,7 @@ Each task is one Conventional Commit. Tick only after it is verified.
       fake implementations, binding, `services.pixelforge` and `billing` config.
 - [x] **T6. Security baseline.** Security headers, cookies, trusted proxies, rate limiters, stateless
       webhook route group, `is_admin`, `admin` Gate.
-- [ ] **T7. Observability.** JSON logs, request context, `/health`, Horizon, Pulse, Sentry,
+- [x] **T7. Observability.** JSON logs, request context, `/health`, Horizon, Pulse, Sentry,
       failed-job logging.
 - [ ] **T8. Architecture and smoke tests.**
 - [ ] **T9. CI.** GitHub Actions workflow.
