@@ -44,6 +44,7 @@ return [
         'webhook_secret' => env('PIXELFORGE_WEBHOOK_SECRET'),
         // Seconds a webhook signature timestamp may differ from now (docs/adr/0008).
         'webhook_tolerance' => (int) env('PIXELFORGE_WEBHOOK_TOLERANCE', 300),
+        'timeout' => (int) env('PIXELFORGE_TIMEOUT', 10),
     ],
 
 ];

@@ -26,14 +26,28 @@ use Illuminate\Validation\Rules\Password;
 final class AppServiceProvider extends ServiceProvider
 {
     /**
-     * Interfaces and the classes the container builds for them.
-     * Tests replace the Pixelforge client with FakePixelforgeClient.
-     *
-     * @var array<class-string, class-string>
+     * Register any application services.
      */
-    public array $bindings = [
-        PixelforgeClient::class => HttpPixelforgeClient::class,
-    ];
+    public function register(): void
+    {
+        $this->app->singleton(PixelforgeClient::class, function (): HttpPixelforgeClient {
+            $timeoutConfig = config('services.pixelforge.timeout', 10);
+            $timeout = is_numeric($timeoutConfig) ? (int) $timeoutConfig : 10;
+
+            if ($timeout < 1) {
+                $timeout = 10;
+            }
+
+            $apiKey = config('services.pixelforge.api_key');
+            $baseUrl = config('services.pixelforge.base_url', 'https://pixelforge.promptedit.dev/v1');
+
+            return new HttpPixelforgeClient(
+                is_string($baseUrl) ? $baseUrl : 'https://pixelforge.promptedit.dev/v1',
+                is_string($apiKey) ? $apiKey : null,
+                $timeout,
+            );
+        });
+    }
 
     /**
      * Bootstrap any application services.
