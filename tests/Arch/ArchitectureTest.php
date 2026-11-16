@@ -45,8 +45,17 @@ arch('no debugging leftovers or unsafe functions')
 arch('no insecure functions')
     ->preset()->security();
 
-test('money code has no float types, casts or literals', function () {
-    $files = glob(__DIR__.'/../../app/Support/Money/*.php') ?: [];
+/**
+ * @param  list<string>  $paths
+ */
+function expectNoFloatTokensInPhpPaths(array $paths): void
+{
+    $files = [];
+
+    foreach ($paths as $path) {
+        $matches = glob($path) ?: [];
+        $files = [...$files, ...$matches];
+    }
 
     expect($files)->not->toBeEmpty();
 
@@ -55,9 +64,20 @@ test('money code has no float types, casts or literals', function () {
             ->filter(fn (mixed $token): bool => is_array($token) && (
                 $token[0] === T_DOUBLE_CAST
                 || $token[0] === T_DNUMBER
-                || ($token[0] === T_STRING && strtolower($token[1]) === 'float')
+                || ($token[0] === T_STRING && in_array(strtolower($token[1]), ['float', 'floatval'], true))
             ));
 
         expect($floats)->toBeEmpty("Float found in {$file}");
     }
+}
+
+test('money code has no float types, casts or literals', function () {
+    expectNoFloatTokensInPhpPaths([__DIR__.'/../../app/Support/Money/*.php']);
+});
+
+test('billing and pixelforge code has no float types, casts or literals', function () {
+    expectNoFloatTokensInPhpPaths([
+        __DIR__.'/../../app/Services/Billing/*.php',
+        __DIR__.'/../../app/Services/Pixelforge/*.php',
+    ]);
 });
