@@ -26,9 +26,9 @@ defineOptions({
     <Head title="Register" />
 
     <Form
+        v-slot="{ errors, processing }"
         v-bind="store.form()"
         :reset-on-success="['password', 'password_confirmation']"
-        v-slot="{ errors, processing }"
         class="flex flex-col gap-6"
     >
         <div class="grid gap-6">
@@ -36,9 +36,9 @@ defineOptions({
                 <Label for="name">Name</Label>
                 <Input
                     id="name"
+                    v-focus
                     type="text"
                     required
-                    v-focus
                     :tabindex="1"
                     autocomplete="name"
                     name="name"

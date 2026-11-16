@@ -6,7 +6,7 @@ Each task is one Conventional Commit. Tick only after it is verified.
 - [x] **T2. Scaffold.** Vue starter kit, renamed, trimmed with `install:features` (registration only).
 - [x] **T3. Docker.** `Dockerfile`, `compose.yaml`, `compose.prod.yaml`, entrypoint, Caddyfile, PHP
       config, MySQL init script, `Makefile`, `.env.example`, `.dockerignore`.
-- [ ] **T4. Quality tooling.** Pest, Larastan (max), Pint (strict types), ESLint, Prettier,
+- [x] **T4. Quality tooling.** Pest, Larastan (max), Pint (strict types), ESLint, Prettier,
       `vue-tsc`; codebase passes all of them.
 - [ ] **T5. Domain skeleton.** Enums, `Money` with unit tests, `PixelforgeClient` interface, HTTP and
       fake implementations, binding, `services.pixelforge` and `billing` config.

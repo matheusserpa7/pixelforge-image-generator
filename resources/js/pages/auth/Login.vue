@@ -36,9 +36,9 @@ defineProps<{
     </div>
 
     <Form
+        v-slot="{ errors, processing }"
         v-bind="store.form()"
         :reset-on-success="['password']"
-        v-slot="{ errors, processing }"
         class="flex flex-col gap-6"
     >
         <div class="grid gap-6">
@@ -46,10 +46,10 @@ defineProps<{
                 <Label for="email">Email address</Label>
                 <Input
                     id="email"
+                    v-focus
                     type="email"
                     name="email"
                     required
-                    v-focus
                     :tabindex="1"
                     autocomplete="email"
                     placeholder="email@example.com"

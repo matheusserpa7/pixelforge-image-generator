@@ -117,8 +117,8 @@ const rightNavItems: NavItem[] = [
                                         "
                                     >
                                         <component
-                                            v-if="item.icon"
                                             :is="item.icon"
+                                            v-if="item.icon"
                                             class="h-5 w-5"
                                         />
                                         {{ item.title }}
@@ -134,8 +134,8 @@ const rightNavItems: NavItem[] = [
                                         class="flex items-center space-x-2 text-sm font-medium"
                                     >
                                         <component
-                                            v-if="item.icon"
                                             :is="item.icon"
+                                            v-if="item.icon"
                                             class="h-5 w-5"
                                         />
                                         <span>{{ item.title }}</span>
@@ -173,8 +173,8 @@ const rightNavItems: NavItem[] = [
                                     :href="item.href"
                                 >
                                     <component
-                                        v-if="item.icon"
                                         :is="item.icon"
+                                        v-if="item.icon"
                                         class="mr-2 h-4 w-4"
                                     />
                                     {{ item.title }}

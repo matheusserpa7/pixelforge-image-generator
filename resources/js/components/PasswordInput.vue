@@ -24,15 +24,14 @@ defineExpose({
 <template>
     <div class="relative">
         <Input
-            v-focus="props.autofocus"
             ref="inputRef"
+            v-focus="props.autofocus"
             :type="showPassword ? 'text' : 'password'"
             :class="cn('pr-10', props.class)"
             v-bind="$attrs"
         />
         <button
             type="button"
-            @click="showPassword = !showPassword"
             :class="
                 cn(
                     'absolute inset-y-0 right-0 flex items-center rounded-r-md px-3 text-muted-foreground hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:outline-none',
@@ -40,6 +39,7 @@ defineExpose({
             "
             :aria-label="showPassword ? 'Hide password' : 'Show password'"
             :tabindex="-1"
+            @click="showPassword = !showPassword"
         >
             <EyeOff v-if="showPassword" class="size-4" />
             <Eye v-else class="size-4" />

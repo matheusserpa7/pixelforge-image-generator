@@ -28,7 +28,7 @@ No code is written before its spec exists.
 - `docs/roadmap.md` lists the specs in order.
 - `tasks.md` is a checklist; tick a task only after it is implemented and verified.
 - One small commit per completed task, in Conventional Commits (`feat:`, `fix:`, `docs:`, `chore:`,
-  `test:`, `ci:`, `refactor:`).
+  `test:`, `ci:`, `refactor:`). No `Co-Authored-By` or other AI attribution trailers.
 - A relevant decision gets a short ADR in `docs/adr/NNNN-title.md` (context, decision, consequences).
   If information is missing, pick the simplest option that respects the decisions below, write the
   ADR and move on.

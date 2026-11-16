@@ -1,0 +1,10 @@
+vendor
+node_modules
+public
+storage
+bootstrap/ssr
+resources/js/actions
+resources/js/routes
+resources/js/wayfinder
+resources/js/components/ui
+resources/views/mail
