@@ -1,6 +1,6 @@
 # 001 Pixelforge client and pricing: tech spec
 
-Status: **approved** · 2026-11-16 · PRD: [prd.md](prd.md)
+Status: **implemented** · 2026-11-16 · PRD: [prd.md](prd.md)
 
 Implements ADR 0003, ADR 0004, ADR 0005 and ADR 0006 on top of the empty client from spec 000. The
 provider contract is [docs/product/pixelforge-api.md](../../product/pixelforge-api.md). Where this file

@@ -1,6 +1,6 @@
 # 001 Pixelforge client and pricing: tasks
 
-Status: **approved** · 2026-11-16 · Tech spec: [tech-spec.md](tech-spec.md)
+Status: **implemented** · 2026-11-16 · Tech spec: [tech-spec.md](tech-spec.md)
 
 - [x] **T1. Pixelforge client.** `DecimalJson`, `PixelforgeException`, the DTOs the client returns and
       accepts (`Pricing`, `GenerationRates`, `TokenUsage`, `CreateGenerationRequest`,

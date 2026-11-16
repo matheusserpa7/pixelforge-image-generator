@@ -63,7 +63,7 @@ key matches the deployed app exactly.
 | Provider cost       | What Pixelforge charges us: `Σ tokens × rate`, exact, in nano-USD.                        |
 | Markup              | 25% added on top of provider cost (configurable).                                         |
 | User charge         | Provider cost × 1.25, rounded half-up to the nano. What the user pays.                    |
-| Estimate            | Up-front price from cached pricing: expected value and maximum possible value.           |
+| Estimate            | Up-front price from pricing cached for `billing.pricing_cache_seconds` (default 3600): expected value and maximum. |
 | Nano-USD (nanos)    | Integer money unit, 1 USD = 10⁹ nanos. Matches the 9 decimals of `GET /v1/usage`.         |
 | Ledger entry        | Append-only record of a charge; at most one per generation.                               |
 | Webhook event       | A signed POST from Pixelforge (`evt_…`), stored once and processed in a job.              |

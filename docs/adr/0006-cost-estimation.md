@@ -25,3 +25,4 @@ markup. The estimate is stored on the generation when it is created.
   submission (then the generation's own rates win, see ADR 0005).
 - If the pricing endpoint is down and the cache is empty, the form cannot show a price, so
   submission is blocked with a clear message.
+- The table is cached for `billing.pricing_cache_seconds` (default 3600).
