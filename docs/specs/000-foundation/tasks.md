@@ -3,8 +3,8 @@
 Each task is one Conventional Commit. Tick only after it is verified.
 
 - [x] **T1. Documentation.** `CLAUDE.md`, `docs/product/*`, ADRs 0001–0020, this spec, roadmap.
-- [ ] **T2. Scaffold.** Vue starter kit, renamed, trimmed with `install:features` (registration only).
-- [ ] **T3. Docker.** `Dockerfile`, `compose.yaml`, `compose.prod.yaml`, entrypoint, Caddyfile, PHP
+- [x] **T2. Scaffold.** Vue starter kit, renamed, trimmed with `install:features` (registration only).
+- [x] **T3. Docker.** `Dockerfile`, `compose.yaml`, `compose.prod.yaml`, entrypoint, Caddyfile, PHP
       config, MySQL init script, `Makefile`, `.env.example`, `.dockerignore`.
 - [ ] **T4. Quality tooling.** Pest, Larastan (max), Pint (strict types), ESLint, Prettier,
       `vue-tsc`; codebase passes all of them.

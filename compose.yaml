@@ -1,0 +1,110 @@
+# Development stack. Start everything with `docker compose up` (or `make up`).
+# Production uses compose.prod.yaml. See docs/adr/0016-docker-frankenphp.md.
+name: pixelforge-studio
+
+# Every PHP service runs the same dev image with the code bind-mounted.
+x-app: &app
+    image: pixelforge-studio:dev
+    build:
+        context: .
+        target: dev
+    volumes:
+        - .:/app
+        - node_modules:/app/node_modules
+
+# Services that need the app container to have installed dependencies and migrated first.
+x-after-app: &after-app
+    mysql:
+        condition: service_healthy
+    redis:
+        condition: service_healthy
+    app:
+        condition: service_healthy
+
+services:
+    app:
+        <<: *app
+        environment:
+            RUN_MIGRATIONS: 'true'
+        ports:
+            - '${APP_PORT:-8080}:8080'
+        depends_on:
+            mysql:
+                condition: service_healthy
+            redis:
+                condition: service_healthy
+        healthcheck:
+            test: ['CMD', 'php', '-r', "exit(@file_get_contents('http://127.0.0.1:8080/up') === false ? 1 : 0);"]
+            interval: 10s
+            timeout: 5s
+            retries: 6
+            # The first start installs Composer dependencies, which takes a while.
+            start_period: 300s
+
+    horizon:
+        <<: *app
+        command: ['php', 'artisan', 'horizon']
+        depends_on: *after-app
+        healthcheck:
+            disable: true
+
+    scheduler:
+        <<: *app
+        command: ['php', 'artisan', 'schedule:work']
+        depends_on: *after-app
+        healthcheck:
+            disable: true
+
+    vite:
+        <<: *app
+        command: ['sh', '-c', '[ -f node_modules/.package-lock.json ] || npm ci; npm run dev']
+        environment:
+            # File change events do not cross Windows/macOS bind mounts; poll instead.
+            VITE_USE_POLLING: 'true'
+        ports:
+            - '${VITE_PORT:-5173}:5173'
+        depends_on: *after-app
+        healthcheck:
+            disable: true
+
+    mysql:
+        image: mysql:8.4.13
+        environment:
+            MYSQL_DATABASE: '${DB_DATABASE:-pixelforge}'
+            MYSQL_USER: '${DB_USERNAME:-pixelforge}'
+            MYSQL_PASSWORD: '${DB_PASSWORD:-secret}'
+            MYSQL_ROOT_PASSWORD: '${DB_ROOT_PASSWORD:-root}'
+        volumes:
+            - mysql:/var/lib/mysql
+            - ./docker/mysql/create-testing-database.sh:/docker-entrypoint-initdb.d/10-create-testing-database.sh:ro
+        healthcheck:
+            test: ['CMD-SHELL', 'mysqladmin ping -h 127.0.0.1 -uroot -p"$$MYSQL_ROOT_PASSWORD" --silent']
+            interval: 5s
+            timeout: 5s
+            retries: 30
+
+    redis:
+        image: redis:8.8-alpine
+        volumes:
+            - redis:/data
+        healthcheck:
+            test: ['CMD', 'redis-cli', 'ping']
+            interval: 5s
+            timeout: 3s
+            retries: 10
+
+    # Optional public URL for Pixelforge webhooks: `docker compose --profile tunnel up`.
+    # The https://*.trycloudflare.com address is printed in `docker compose logs tunnel`;
+    # set it (plus /webhooks/pixelforge) as the webhook URL of your local Pixelforge key.
+    tunnel:
+        image: cloudflare/cloudflared:2026.11.0
+        profiles: ['tunnel']
+        command: ['tunnel', '--no-autoupdate', '--url', 'http://app:8080']
+        depends_on:
+            app:
+                condition: service_healthy
+
+volumes:
+    mysql:
+    redis:
+    node_modules:

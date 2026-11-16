@@ -32,13 +32,32 @@ export default defineConfig({
         }),
     ]),
     server: {
+        // Listen on every interface so the browser can reach Vite inside Docker,
+        // but tell it to connect to localhost for hot reloading.
+        host: '0.0.0.0',
+        port: 5173,
+        strictPort: true,
+        hmr: {
+            host: 'localhost',
+        },
         watch: {
+            // Docker on Windows/macOS does not forward file events through bind
+            // mounts, so compose.yaml turns on (slow, cheap) polling.
+            usePolling: process.env.VITE_USE_POLLING === 'true',
+            interval: 1000,
             ignored: [
                 '**/.agents/**',
                 '**/.claude/**',
                 '**/.cursor/**',
                 '**/.junie/**',
+                '**/.git/**',
                 '**/vendor/**',
+                '**/storage/**',
+                '**/bootstrap/**',
+                '**/database/**',
+                '**/docs/**',
+                '**/tests/**',
+                '**/public/**',
             ],
         },
     },
