@@ -14,7 +14,7 @@ Each task is one Conventional Commit. Tick only after it is verified.
       webhook route group, `is_admin`, `admin` Gate.
 - [x] **T7. Observability.** JSON logs, request context, `/health`, Horizon, Pulse, Sentry,
       failed-job logging.
-- [ ] **T8. Architecture and smoke tests.**
+- [x] **T8. Architecture and smoke tests.**
 - [ ] **T9. CI.** GitHub Actions workflow.
 - [ ] **T10. README.**
 - [ ] **T11. Verification.** `docker compose up` healthy, registration works in the browser,
