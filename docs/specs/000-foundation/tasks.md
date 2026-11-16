@@ -17,5 +17,5 @@ Each task is one Conventional Commit. Tick only after it is verified.
 - [x] **T8. Architecture and smoke tests.**
 - [x] **T9. CI.** GitHub Actions workflow.
 - [x] **T10. README.**
-- [ ] **T11. Verification.** `docker compose up` healthy, registration works in the browser,
+- [x] **T11. Verification.** `docker compose up` healthy, registration works in the browser,
       `make lint analyse test` green; output recorded in the final report.

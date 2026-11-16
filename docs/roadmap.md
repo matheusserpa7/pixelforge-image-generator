@@ -4,7 +4,7 @@ Specs in delivery order. Each one gets `prd.md`, `tech-spec.md` and `tasks.md` b
 
 | #   | Spec                              | Goal                                                                                      | Status  |
 | --- | --------------------------------- | ----------------------------------------------------------------------------------------- | ------- |
-| 000 | `000-foundation`                  | Running, documented skeleton with money primitives, security, observability and CI.       | In progress |
+| 000 | `000-foundation`                  | Running, documented skeleton with money primitives, security, observability and CI.       | Done        |
 | 001 | `001-pixelforge-client-and-pricing` | HTTP client for Pixelforge plus cached pricing, cost estimate and actual-cost calculation. | Next    |
 | 002 | `002-generation-lifecycle`        | Create generations idempotently through a rate-limited job and charge successes exactly once. | Planned |
 | 003 | `003-webhooks-and-reconciliation` | Verify, deduplicate and process webhooks in any order, with polling as a safety net.      | Planned |
