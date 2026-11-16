@@ -4,21 +4,25 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Services\Pixelforge\HttpPixelforgeClient;
+use App\Services\Pixelforge\PixelforgeClient;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 
-class AppServiceProvider extends ServiceProvider
+final class AppServiceProvider extends ServiceProvider
 {
     /**
-     * Register any application services.
+     * Interfaces and the classes the container builds for them.
+     * Tests replace the Pixelforge client with FakePixelforgeClient.
+     *
+     * @var array<class-string, class-string>
      */
-    public function register(): void
-    {
-        //
-    }
+    public array $bindings = [
+        PixelforgeClient::class => HttpPixelforgeClient::class,
+    ];
 
     /**
      * Bootstrap any application services.

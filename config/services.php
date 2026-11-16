@@ -37,4 +37,13 @@ return [
         ],
     ],
 
+    // docs/product/pixelforge-api.md. One API key (and signing secret) per environment.
+    'pixelforge' => [
+        'base_url' => env('PIXELFORGE_BASE_URL', 'https://pixelforge.promptedit.dev/v1'),
+        'api_key' => env('PIXELFORGE_API_KEY'),
+        'webhook_secret' => env('PIXELFORGE_WEBHOOK_SECRET'),
+        // Seconds a webhook signature timestamp may differ from now (docs/adr/0008).
+        'webhook_tolerance' => (int) env('PIXELFORGE_WEBHOOK_TOLERANCE', 300),
+    ],
+
 ];

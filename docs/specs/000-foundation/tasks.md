@@ -8,7 +8,7 @@ Each task is one Conventional Commit. Tick only after it is verified.
       config, MySQL init script, `Makefile`, `.env.example`, `.dockerignore`.
 - [x] **T4. Quality tooling.** Pest, Larastan (max), Pint (strict types), ESLint, Prettier,
       `vue-tsc`; codebase passes all of them.
-- [ ] **T5. Domain skeleton.** Enums, `Money` with unit tests, `PixelforgeClient` interface, HTTP and
+- [x] **T5. Domain skeleton.** Enums, `Money` with unit tests, `PixelforgeClient` interface, HTTP and
       fake implementations, binding, `services.pixelforge` and `billing` config.
 - [ ] **T6. Security baseline.** Security headers, cookies, trusted proxies, rate limiters, stateless
       webhook route group, `is_admin`, `admin` Gate.
