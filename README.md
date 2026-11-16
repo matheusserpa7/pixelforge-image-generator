@@ -99,7 +99,21 @@ code exists:
 5. **Verification**: `make lint analyse test` and a real `docker compose up` before a task is
    ticked.
 
+The workflow itself is versioned in [.claude/](.claude/rules/sdd.md), so every session runs it
+the same way:
+
+| Role             | Model                         | What it does                                              |
+| ---------------- | ----------------------------- | --------------------------------------------------------- |
+| Spec session     | Opus                          | Writes the PRD, tech spec and tasks, then stops for human approval. After approval it only orchestrates. |
+| `implementador`  | Sonnet                        | Implements one task with its test and returns with `make lint analyse test` green. |
+| `revisor`        | Opus on risk areas, else Sonnet | Reviews the task against the spec; fixes what is small, returns what is big. |
+
+The expensive model thinks once (the spec, and the review of what is risky), the cheaper one
+writes the code, and no test runs twice unless something changed in between. Risk areas, which
+always get the Opus reviewer and can never skip the spec: money and the billing ledger, webhooks
+and generation status, provider calls, authorization and database schema.
+
 Decisions that outlive a spec become ADRs. The rules for humans and agents are in
-[CLAUDE.md](CLAUDE.md), and [docs/roadmap.md](docs/roadmap.md) lists what comes next. Every line is
+[CLAUDE.md](CLAUDE.md) and [.claude/rules/sdd.md](.claude/rules/sdd.md), and [docs/roadmap.md](docs/roadmap.md) lists what comes next. Every line is
 reviewed and explainable; architecture tests guard the rules that matter most (strict types, no
 floats in money code, no HTTP calls from controllers).

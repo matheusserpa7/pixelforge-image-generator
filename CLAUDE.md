@@ -22,16 +22,9 @@ or abstractions without an immediate use.
 ## Spec-first workflow (mandatory)
 
 Every change follows: **PRD → tech spec → tasks → implementation → verification.**
-No code is written before its spec exists.
-
-- One folder per delivery: `docs/specs/NNN-name/{prd.md,tech-spec.md,tasks.md}`.
-- `docs/roadmap.md` lists the specs in order.
-- `tasks.md` is a checklist; tick a task only after it is implemented and verified.
-- One small commit per completed task, in Conventional Commits (`feat:`, `fix:`, `docs:`, `chore:`,
-  `test:`, `ci:`, `refactor:`). No `Co-Authored-By` or other AI attribution trailers.
-- A relevant decision gets a short ADR in `docs/adr/NNNN-title.md` (context, decision, consequences).
-  If information is missing, pick the simplest option that respects the decisions below, write the
-  ADR and move on.
+The process (when a spec is needed, approval, the implementer and reviewer agents, the test bar,
+commits, closing the docs) lives in one place: [.claude/rules/sdd.md](.claude/rules/sdd.md).
+The step-by-step procedure is the `sdd` skill (`.claude/skills/sdd/SKILL.md`).
 
 ## Fixed decisions (see ADRs; specs must follow them)
 
