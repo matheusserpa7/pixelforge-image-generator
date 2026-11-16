@@ -10,7 +10,7 @@ Each task is one Conventional Commit. Tick only after it is verified.
       `vue-tsc`; codebase passes all of them.
 - [x] **T5. Domain skeleton.** Enums, `Money` with unit tests, `PixelforgeClient` interface, HTTP and
       fake implementations, binding, `services.pixelforge` and `billing` config.
-- [ ] **T6. Security baseline.** Security headers, cookies, trusted proxies, rate limiters, stateless
+- [x] **T6. Security baseline.** Security headers, cookies, trusted proxies, rate limiters, stateless
       webhook route group, `is_admin`, `admin` Gate.
 - [ ] **T7. Observability.** JSON logs, request context, `/health`, Horizon, Pulse, Sentry,
       failed-job logging.
