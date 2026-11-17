@@ -14,7 +14,7 @@ Status: **approved** · 2026-11-16 · Tech spec: [tech-spec.md](tech-spec.md)
       `pages/generations/Index.vue` that renders the props so the Inertia assertion finds the
       component, regenerated Wayfinder helpers, and the tests. Tech spec: `MoneyView` and
       `GenerationResource`, Routes and controller, Throttled submit, Tests (T2 rows). Reviewer: Opus.
-- [ ] **T3. Generate form, history and polling.** `types/generations.ts`, `GenerateForm.vue` with the
+- [x] **T3. Generate form, history and polling.** `types/generations.ts`, `GenerateForm.vue` with the
       live estimate, `GenerationCard.vue`, the full `Index.vue` with pagination and polling, the
       sidebar and logo changes, removal of the placeholder dashboard. Tech spec: Behaviour in code
       (Page). Reviewer: Sonnet. Then the main session checks the page in the browser.
