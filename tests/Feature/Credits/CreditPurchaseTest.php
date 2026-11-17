@@ -90,7 +90,7 @@ it('shows only the user figures and purchases on the credits page', function () 
 
     $this->actingAs($user)->get(route('credits.index'))
         ->assertInertia(fn (Assert $page) => $page
-            ->component('credits/Index', false)
+            ->component('credits/Index')
             ->where('balance.available.amount', '10.000000000')
             ->where('balance.held.amount', '0.000000000')
             ->has('purchases', 1)

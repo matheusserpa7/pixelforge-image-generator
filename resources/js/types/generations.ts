@@ -48,4 +48,6 @@ export type GenerationOptions = {
 export type EstimateResponse = {
     estimated_charge: MoneyView;
     maximum_charge: MoneyView;
+    available: MoneyView;
+    affordable: boolean;
 };

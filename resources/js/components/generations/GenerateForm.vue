@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useForm, useHttp } from '@inertiajs/vue3';
+import { Link, useForm, useHttp } from '@inertiajs/vue3';
 import { Plus } from '@lucide/vue';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import {
@@ -8,6 +8,7 @@ import {
 } from '@/actions/App/Http/Controllers/GenerationController';
 import ReferenceImageRow from '@/components/generations/ReferenceImageRow.vue';
 import InputError from '@/components/InputError.vue';
+import { index as creditsIndex } from '@/routes/credits';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -55,13 +56,16 @@ const referencePositions = computed(() =>
 );
 
 const submitDisabled = computed(
-    () => form.processing || pricingUnavailable.value !== null,
+    () =>
+        form.processing ||
+        pricingUnavailable.value !== null ||
+        currentEstimate.value?.affordable === false,
 );
 
 const bannerErrors = computed(() => {
     const errors = form.errors as Record<string, string | undefined>;
 
-    return [errors.pricing, errors.generation].filter(
+    return [errors.pricing, errors.generation, errors.credits].filter(
         (message): message is string => typeof message === 'string',
     );
 });
@@ -286,6 +290,21 @@ function submit(): void {
                 >
                 <Spinner v-if="estimateLoading" class="size-4" />
             </div>
+            <p v-if="currentEstimate">
+                Available
+                <strong :title="currentEstimate.available.amount">{{
+                    currentEstimate.available.display
+                }}</strong>
+            </p>
+            <p
+                v-if="currentEstimate && !currentEstimate.affordable"
+                class="text-destructive"
+            >
+                Not enough credits for the maximum charge.
+                <Link :href="creditsIndex()" class="underline"
+                    >Buy credits</Link
+                >
+            </p>
             <p v-if="estimatePaused" class="text-xs text-muted-foreground">
                 Estimate paused, try again in a moment.
             </p>

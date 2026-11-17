@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link, usePage } from '@inertiajs/vue3';
-import { ChartColumn, Image } from '@lucide/vue';
+import { ChartColumn, Image, Wallet } from '@lucide/vue';
 import { computed } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
 import NavMain from '@/components/NavMain.vue';
@@ -15,6 +15,7 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { report } from '@/routes/admin';
+import { index as credits } from '@/routes/credits';
 import { index as generations } from '@/routes/generations';
 import type { NavItem } from '@/types';
 
@@ -25,6 +26,12 @@ const mainNavItems = computed<NavItem[]>(() => [
         title: 'Generations',
         href: generations(),
         icon: Image,
+    },
+    {
+        title: 'Credits',
+        href: credits(),
+        icon: Wallet,
+        badge: page.props.credits?.available.display,
     },
     ...(page.props.auth.isAdmin
         ? [{ title: 'Report', href: report(), icon: ChartColumn }]

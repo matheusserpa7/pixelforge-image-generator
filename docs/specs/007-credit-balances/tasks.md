@@ -13,7 +13,7 @@ Status: **approved** · 2026-11-17 · Tech spec: [tech-spec.md](tech-spec.md)
       key, `PurchaseCreditsRequest`, `CreditController` (`index`, `purchase`), routes and the
       `credit-purchases` limiter, the lazy `credits` shared prop, and their feature tests. Tech spec:
       Model and contracts → Config, actions; Behaviour in code → HTTP; Tests. Reviewer: Opus.
-- [ ] **T3. Credits UI.** `credits/Index.vue`, the sidebar Credits item with the available amount, and
+- [x] **T3. Credits UI.** `credits/Index.vue`, the sidebar Credits item with the available amount, and
       the available credit, disabled submit and "Buy credits" link in `GenerateForm.vue`. Tech spec:
       UI. Reviewer: Sonnet.
 - [ ] **T4. Close the docs.** ADR 0024 (derived balances with holds at the maximum charge) plus
