@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Actions\BuildAdminReport;
 use App\Data\AdminReport;
 use App\Data\AdminReportDay;
+use App\Data\AdminReportStuckGeneration;
 use App\Data\AdminReportUser;
 use App\Http\Requests\AdminReportRequest;
 use App\Http\Resources\MoneyView;
@@ -63,6 +64,13 @@ final class AdminReportController extends Controller
                 'providerCost' => $this->money($user->providerCost),
                 'profit' => $this->money($user->profit),
             ], $report->users),
+            'stuck' => array_map(fn (AdminReportStuckGeneration $row): array => [
+                'id' => $row->id,
+                'userEmail' => $row->userEmail,
+                'status' => $row->status,
+                'providerId' => $row->providerId,
+                'createdAt' => $row->createdAt->utc()->format('Y-m-d H:i'),
+            ], $report->stuck),
         ];
     }
 

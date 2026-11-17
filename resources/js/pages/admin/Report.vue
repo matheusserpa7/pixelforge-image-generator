@@ -8,7 +8,12 @@ import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
 import { Label } from '@/components/ui/label';
 import { report } from '@/routes/admin';
-import type { ReportDay, ReportTotals, ReportUser } from '@/types';
+import type {
+    ReportDay,
+    ReportStuckGeneration,
+    ReportTotals,
+    ReportUser,
+} from '@/types';
 
 const props = defineProps<{
     range: { start: string; end: string };
@@ -16,6 +21,7 @@ const props = defineProps<{
     totals: ReportTotals;
     days: ReportDay[];
     users: ReportUser[];
+    stuck: ReportStuckGeneration[];
     errors?: Record<string, string>;
 }>();
 
@@ -95,6 +101,52 @@ defineOptions({
                 Apply range
             </Button>
         </form>
+
+        <section v-if="stuck.length > 0" class="flex flex-col gap-2">
+            <h2 class="text-lg font-semibold">Needs attention</h2>
+            <p class="text-sm text-muted-foreground">
+                In flight longer than expected. Pixelforge may have billed
+                these; check them in the Pixelforge dashboard.
+            </p>
+            <div class="overflow-x-auto rounded-md border">
+                <table class="w-full text-sm tabular-nums">
+                    <thead class="bg-muted/50 text-left">
+                        <tr>
+                            <th scope="col" class="px-3 py-2 font-medium">
+                                Generation id
+                            </th>
+                            <th scope="col" class="px-3 py-2 font-medium">
+                                User
+                            </th>
+                            <th scope="col" class="px-3 py-2 font-medium">
+                                Status
+                            </th>
+                            <th scope="col" class="px-3 py-2 font-medium">
+                                Provider id
+                            </th>
+                            <th scope="col" class="px-3 py-2 font-medium">
+                                Created (UTC)
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr
+                            v-for="row in stuck"
+                            :key="row.id"
+                            class="border-t bg-amber-50 dark:bg-amber-950"
+                        >
+                            <td class="px-3 py-2">{{ row.id }}</td>
+                            <td class="px-3 py-2">
+                                {{ row.userEmail ?? 'Deleted user' }}
+                            </td>
+                            <td class="px-3 py-2">{{ row.status }}</td>
+                            <td class="px-3 py-2">{{ row.providerId }}</td>
+                            <td class="px-3 py-2">{{ row.createdAt }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
 
         <Alert v-if="!providerUsageAvailable">
             <AlertTitle>Pixelforge usage unavailable</AlertTitle>

@@ -100,3 +100,26 @@ it('shares auth.isAdmin', function () {
         ->get(route('generations.index'))
         ->assertInertia(fn (Assert $page) => $page->where('auth.isAdmin', false));
 });
+
+it('sends an empty stuck list when nothing is stuck', function () {
+    $this->actingAs(User::factory()->admin()->create())
+        ->get(route('admin.report'))
+        ->assertInertia(fn (Assert $page) => $page->has('stuck', 0));
+});
+
+it('sends the stuck list when a generation is stuck', function () {
+    $admin = User::factory()->admin()->create();
+    $generation = Generation::factory()->create([
+        'status' => GenerationStatus::Processing,
+        'provider_id' => 'gen_stuck',
+    ]);
+    Generation::query()->whereKey($generation->id)->update(['created_at' => now()->subHours(2)]);
+
+    $this->actingAs($admin)
+        ->get(route('admin.report'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('stuck', 1)
+            ->where('stuck.0.id', $generation->id)
+            ->where('stuck.0.providerId', 'gen_stuck')
+            ->where('stuck.0.status', 'processing'));
+});

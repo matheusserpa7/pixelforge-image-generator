@@ -168,12 +168,27 @@ final readonly class PixelforgeGeneration
 
         $map = self::requireMap($value, 'usage');
 
-        return new TokenUsage(
+        $usage = new TokenUsage(
             self::requireNonNegativeIntString($map['input_text_tokens'] ?? null, 'usage.input_text_tokens'),
             self::requireNonNegativeIntString($map['input_image_tokens'] ?? null, 'usage.input_image_tokens'),
             self::requireNonNegativeIntString($map['output_tokens'] ?? null, 'usage.output_tokens'),
             self::requireNonNegativeIntString($map['reasoning_tokens'] ?? null, 'usage.reasoning_tokens'),
         );
+
+        // A total that is not the sum of the four priced types means a token type we do not price.
+        if (array_key_exists('total_tokens', $map)) {
+            $total = self::requireNonNegativeIntString($map['total_tokens'], 'usage.total_tokens');
+            $sum = BigInteger::of($usage->inputText)
+                ->plus($usage->inputImage)
+                ->plus($usage->output)
+                ->plus($usage->reasoning);
+
+            if (! $sum->isEqualTo($total)) {
+                throw new InvalidArgumentException('usage.total_tokens does not match the priced token types.');
+            }
+        }
+
+        return $usage;
     }
 
     private static function parseError(mixed $value): ?PixelforgeGenerationError

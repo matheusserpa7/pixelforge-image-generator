@@ -314,3 +314,17 @@ it('logs an unparseable generation payload at error level', function () {
         ->withArgs(fn (string $message, array $context): bool => ($context['event_id'] ?? null) === 'evt_bad_1')
         ->once();
 });
+
+it('refuses a succeeded snapshot whose total_tokens does not match the priced types', function () {
+    $generation = Generation::factory()->create();
+
+    $event = processEvent(storeEvent('generation.succeeded', pixelforgeGenerationObject([
+        'status' => 'succeeded',
+        'metadata' => ['generation_id' => $generation->id],
+        'usage' => [...usageObject(), 'total_tokens' => 1_366],
+    ])));
+
+    expect($event->outcome)->toBe(WebhookEventOutcome::InvalidPayload)
+        ->and(LedgerEntry::query()->count())->toBe(0)
+        ->and($generation->refresh()->status)->toBe(GenerationStatus::Queued);
+});

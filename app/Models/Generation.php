@@ -32,6 +32,7 @@ use Illuminate\Support\Carbon;
  * @property int $maximum_charge_nanos
  * @property string $markup_percent
  * @property array<string, int>|null $maximum_tokens
+ * @property Carbon|null $stuck_reported_at
  * @property int|null $provider_cost_nanos
  * @property int|null $charge_nanos
  * @property array<string, int>|null $rates
@@ -114,6 +115,7 @@ final class Generation extends Model
             'rates' => 'array',
             'usage' => 'array',
             'maximum_tokens' => 'array',
+            'stuck_reported_at' => 'datetime',
             'submit_unconfirmed' => 'boolean',
             'image_url_expires_at' => 'datetime',
             'provider_created_at' => 'datetime',

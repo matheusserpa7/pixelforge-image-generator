@@ -6,9 +6,11 @@ namespace App\Actions;
 
 use App\Data\AdminReport;
 use App\Data\AdminReportDay;
+use App\Data\AdminReportStuckGeneration;
 use App\Data\AdminReportTotals;
 use App\Data\AdminReportUser;
 use App\Data\ProviderUsage;
+use App\Enums\GenerationStatus;
 use App\Services\Pixelforge\PixelforgeBusy;
 use App\Services\Pixelforge\PixelforgeClient;
 use App\Services\Pixelforge\PixelforgeException;
@@ -97,7 +99,40 @@ final class BuildAdminReport
                 $usage === null ? null : $totalPixelforge,
                 $usage === null ? null : $allMatch,
             ),
+            $this->stuck(),
         );
+    }
+
+    /**
+     * In-flight generations with a provider id older than the stuck threshold, reported or not.
+     *
+     * @return list<AdminReportStuckGeneration>
+     */
+    private function stuck(): array
+    {
+        $rows = DB::table('generations')
+            ->leftJoin('users', 'users.id', '=', 'generations.user_id')
+            ->whereIn('generations.status', [GenerationStatus::Queued->value, GenerationStatus::Processing->value])
+            ->whereNotNull('generations.provider_id')
+            ->where('generations.created_at', '<=', now()->subSeconds(ReconcileGenerations::stuckAfterSeconds()))
+            ->orderBy('generations.created_at')
+            ->orderBy('generations.id')
+            ->limit(50)
+            ->get(['generations.id', 'generations.status', 'generations.provider_id', 'generations.created_at', 'users.email']);
+
+        $stuck = [];
+
+        foreach ($rows as $row) {
+            $stuck[] = new AdminReportStuckGeneration(
+                $this->text($row->id),
+                $row->email === null ? null : $this->text($row->email),
+                $this->text($row->status),
+                $this->text($row->provider_id),
+                CarbonImmutable::parse($this->text($row->created_at), 'UTC'),
+            );
+        }
+
+        return $stuck;
     }
 
     /**

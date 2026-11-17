@@ -53,6 +53,8 @@ return [
         'submit_give_up_seconds' => env('PIXELFORGE_SUBMIT_GIVE_UP_SECONDS', 86400),
         // Seconds without change before a queued or processing generation is polled (docs/adr/0011).
         'reconcile_after_seconds' => env('PIXELFORGE_RECONCILE_AFTER_SECONDS', 120),
+        // Seconds since creation after which an in-flight generation with a provider id is reported as stuck.
+        'stuck_after_seconds' => env('PIXELFORGE_STUCK_AFTER_SECONDS', 3600),
     ],
 
 ];

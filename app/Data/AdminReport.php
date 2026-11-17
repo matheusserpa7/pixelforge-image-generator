@@ -11,6 +11,7 @@ final readonly class AdminReport
     /**
      * @param  list<AdminReportDay>  $days  Ascending, one per UTC day from start to end.
      * @param  list<AdminReportUser>  $users  Highest charged first.
+     * @param  list<AdminReportStuckGeneration>  $stuck  Oldest first; independent of the date range.
      */
     public function __construct(
         public CarbonImmutable $start,
@@ -19,5 +20,6 @@ final readonly class AdminReport
         public array $days,
         public array $users,
         public AdminReportTotals $totals,
+        public array $stuck,
     ) {}
 }

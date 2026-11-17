@@ -17,8 +17,8 @@ final class ReconcileGenerationsCommand extends Command
     {
         $counts = $reconcile->handle();
 
-        if ($counts['polled'] > 0 || $counts['resubmitted'] > 0) {
-            $this->line("Polled {$counts['polled']}, resubmitted {$counts['resubmitted']}.");
+        if (array_sum($counts) > 0) {
+            $this->line("Polled {$counts['polled']}, resubmitted {$counts['resubmitted']}, stuck {$counts['stuck']}, webhooks {$counts['webhooks']}.");
         }
 
         return self::SUCCESS;

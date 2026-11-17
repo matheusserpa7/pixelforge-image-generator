@@ -29,3 +29,11 @@ export type ReportTotals = {
     pixelforgeCost: MoneyView | null;
     matches: boolean | null;
 };
+
+export type ReportStuckGeneration = {
+    id: string;
+    userEmail: string | null;
+    status: string;
+    providerId: string;
+    createdAt: string;
+};

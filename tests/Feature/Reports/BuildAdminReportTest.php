@@ -225,3 +225,34 @@ it('calls usage once for two builds of the same range within the cache window', 
 
     expect($this->client->usageCalls)->toHaveCount(2);
 });
+
+it('lists in-flight generations with a provider id older than an hour, including a deleted user', function () {
+    $user = User::factory()->create(['email' => 'ada@example.test']);
+    $old = Generation::factory()->create([
+        'user_id' => $user->id,
+        'status' => GenerationStatus::Processing,
+        'provider_id' => 'gen_old',
+    ]);
+    $orphan = Generation::factory()->create([
+        'user_id' => null,
+        'status' => GenerationStatus::Queued,
+        'provider_id' => 'gen_orphan',
+    ]);
+    $recent = Generation::factory()->create(['status' => GenerationStatus::Processing, 'provider_id' => 'gen_new']);
+    $final = Generation::factory()->create(['status' => GenerationStatus::Succeeded, 'provider_id' => 'gen_done']);
+    $unsubmitted = Generation::factory()->create(['status' => GenerationStatus::Queued, 'provider_id' => null]);
+    Generation::query()->whereKey([$old->id, $final->id, $unsubmitted->id])
+        ->update(['created_at' => now()->subHours(2)]);
+    Generation::query()->whereKey($orphan->id)->update(['created_at' => now()->subHours(3)]);
+
+    $stuck = buildReport('2026-03-10', '2026-03-10')->stuck;
+
+    expect($stuck)->toHaveCount(2)
+        ->and($stuck[0]->id)->toBe($orphan->id)
+        ->and($stuck[0]->userEmail)->toBeNull()
+        ->and($stuck[0]->providerId)->toBe('gen_orphan')
+        ->and($stuck[1]->id)->toBe($old->id)
+        ->and($stuck[1]->userEmail)->toBe('ada@example.test')
+        ->and($stuck[1]->status)->toBe('processing')
+        ->and(collect($stuck)->pluck('id')->contains($recent->id))->toBeFalse();
+});

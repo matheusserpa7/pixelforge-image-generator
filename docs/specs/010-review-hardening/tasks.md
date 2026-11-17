@@ -12,7 +12,7 @@ Precondition: specs 000 to 009 are `implemented`. The tasks do not edit `docs/`,
       the existing markup tests moved to the generation's markup. Tech spec: Model and contracts
       (Migration A, `Generation` model, `CostEstimate`, Config), Behaviour in code (T1), Tests (T1).
       Reviewer: Opus.
-- [ ] **T2. Refuse unpriced usage, report stuck generations, sweep webhooks.** The `total_tokens`
+- [x] **T2. Refuse unpriced usage, report stuck generations, sweep webhooks.** The `total_tokens`
       check in `parseUsage`, Migration B, the `stuck_after_seconds` config and `.env.example` line,
       the two new reconciliation steps, the `AdminReport` stuck list with its DTO, controller prop and
       "Needs attention" section, and the T2 tests. Tech spec: Model and contracts (Migration B, Config,
