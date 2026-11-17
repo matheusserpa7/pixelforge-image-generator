@@ -67,7 +67,7 @@ it('exposes money as exact strings and only the documented keys', function () {
                 $keys = array_keys(collect($item)->all());
                 sort($keys);
                 $expected = [
-                    'id', 'status', 'is_final', 'prompt', 'size', 'quality', 'reference_image_count',
+                    'id', 'status', 'awaiting_confirmation', 'is_final', 'prompt', 'size', 'quality', 'reference_image_count',
                     'created_at', 'estimated_charge', 'maximum_charge', 'charge', 'error_message',
                     'image_url', 'image_expired',
                 ];
@@ -123,6 +123,34 @@ it('serves images through the image route and flags expired ones', function () {
                     && $byId[$queued->id]['image_url'] === null
                     && $byId[$queued->id]['image_expired'] === false
                     && $byId[$queued->id]['is_final'] === false;
+            })
+            ->etc()
+        );
+});
+
+it('flags awaiting confirmation only for queued rows without a provider id that are unconfirmed', function () {
+    $user = User::factory()->create();
+    $unconfirmed = Generation::factory()->for($user)->create(['submit_unconfirmed' => true]);
+    $plain = Generation::factory()->for($user)->create(['submit_unconfirmed' => false]);
+    $withProvider = Generation::factory()->for($user)->create([
+        'submit_unconfirmed' => true,
+        'provider_id' => 'gen_abc',
+    ]);
+    $processing = Generation::factory()->for($user)->create([
+        'status' => GenerationStatus::Processing,
+        'submit_unconfirmed' => true,
+    ]);
+
+    $this->actingAs($user)
+        ->get(route('generations.index'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('generations.data', function ($items) use ($unconfirmed, $plain, $withProvider, $processing): bool {
+                $byId = collect($items)->keyBy('id');
+
+                return $byId[$unconfirmed->id]['awaiting_confirmation'] === true
+                    && $byId[$plain->id]['awaiting_confirmation'] === false
+                    && $byId[$withProvider->id]['awaiting_confirmation'] === false
+                    && $byId[$processing->id]['awaiting_confirmation'] === false;
             })
             ->etc()
         );

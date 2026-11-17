@@ -9,7 +9,6 @@ it('reports ok when MySQL and Redis answer', function () {
         ->assertOk()
         ->assertExactJson([
             'status' => 'ok',
-            'checks' => ['database' => 'ok', 'redis' => 'ok'],
         ]);
 });
 
@@ -18,9 +17,7 @@ it('answers 503 when a dependency is down', function () {
 
     $this->getJson(route('health'))
         ->assertServiceUnavailable()
-        ->assertJsonPath('status', 'fail')
-        ->assertJsonPath('checks.database', 'ok')
-        ->assertJsonPath('checks.redis', 'fail');
+        ->assertExactJson(['status' => 'fail']);
 });
 
 it('does not start a session', function () {

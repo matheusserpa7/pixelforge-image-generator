@@ -174,7 +174,14 @@ const placeholder = computed(() => {
             </div>
 
             <p
-                v-if="generation.status === 'queued'"
+                v-if="generation.awaiting_confirmation"
+                class="text-muted-foreground"
+            >
+                Still confirming with the image service. You are only charged if
+                it completes.
+            </p>
+            <p
+                v-else-if="generation.status === 'queued'"
                 class="text-muted-foreground"
             >
                 Waiting for the image service. Busy periods take longer.

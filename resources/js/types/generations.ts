@@ -9,6 +9,7 @@ export type Generation = {
     id: string;
     status: GenerationStatus;
     is_final: boolean;
+    awaiting_confirmation: boolean;
     prompt: string;
     size: string;
     quality: string;

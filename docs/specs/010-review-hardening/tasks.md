@@ -25,7 +25,7 @@ Precondition: specs 000 to 009 are `implemented`. The tasks do not edit `docs/`,
       MySQL service in both compose files (privilege check already failed, maintainer chose the flag),
       the dev MySQL container recreated, Migration C and the T4 tests. Tech spec: Model and contracts
       (Migration C), Behaviour in code (T4), Tests (T4), Risks. Reviewer: Opus.
-- [ ] **T5. Clearer states and errors.** `awaiting_confirmation` in the resource and the TS type, the
+- [x] **T5. Clearer states and errors.** `awaiting_confirmation` in the resource and the TS type, the
       confirming copy in `GenerationCard.vue`, "Try again." on transient failure messages, the health
       body without details, and the T5 tests. Tech spec: Model and contracts (`GenerationResource`),
       Behaviour in code (T5), Tests (T5). Reviewer: Sonnet.

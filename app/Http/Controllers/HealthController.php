@@ -27,7 +27,6 @@ final class HealthController extends Controller
 
         return response()->json([
             'status' => $healthy ? 'ok' : 'fail',
-            'checks' => array_map(fn (bool $passed): string => $passed ? 'ok' : 'fail', $checks),
         ], $healthy ? 200 : 503);
     }
 

@@ -27,6 +27,9 @@ final class GenerationResource extends JsonResource
         return [
             'id' => $this->id,
             'status' => $this->status->value,
+            'awaiting_confirmation' => $this->status === GenerationStatus::Queued
+                && $this->provider_id === null
+                && $this->submit_unconfirmed,
             'is_final' => $this->status->isFinal(),
             'prompt' => $this->prompt,
             'size' => $this->size->value,
