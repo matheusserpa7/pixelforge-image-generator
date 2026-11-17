@@ -46,7 +46,8 @@ The step-by-step procedure is the `sdd` skill (`.claude/skills/sdd/SKILL.md`).
    lock. Failure costs zero. ADR 0010.
 9. A scheduled job polls generations stuck for too long (safety net for lost webhooks). ADR 0011.
 10. Provider limits (3 concurrent, 60 req/min): Redis limiter in the job; on `429`/`503` release
-    respecting `Retry-After`, with backoff and a max attempts cap. ADR 0012.
+    respecting `Retry-After`, with backoff and a max attempts cap. ADR 0012. Concurrency waits never
+    use an attempt. A generation is failed locally only when the provider cannot have it. ADR 0021.
 11. Images are downloaded to a Laravel disk (local now, S3-compatible). ADR 0013.
 12. Users only see their own generations, enforced by a Policy. ADR 0014.
 13. Live status through Inertia polling, no WebSockets. ADR 0015.

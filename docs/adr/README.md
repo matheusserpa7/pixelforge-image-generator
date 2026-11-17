@@ -24,3 +24,4 @@ One short record per relevant decision: context, decision, consequences.
 | 0018 | [Front-end lint and format tooling](0018-frontend-tooling.md)                          |
 | 0019 | [Observability baseline](0019-observability.md)                                        |
 | 0020 | [Authentication scope](0020-auth-scope.md)                                             |
+| 0021 | [Fail locally only when the provider cannot have it](0021-local-failure-only-when-provider-cannot-have-it.md) |

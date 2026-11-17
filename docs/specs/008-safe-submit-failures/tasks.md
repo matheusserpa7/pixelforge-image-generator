@@ -1,6 +1,6 @@
 # 008 Safe submit failures: tasks
 
-Status: **approved** · 2026-11-16 · Tech spec: [tech-spec.md](tech-spec.md)
+Status: **implemented** · 2026-11-16 · Tech spec: [tech-spec.md](tech-spec.md)
 
 Precondition: spec 003 is `implemented`.
 

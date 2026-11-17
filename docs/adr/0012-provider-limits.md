@@ -22,3 +22,8 @@ is not retried.
 - The limiter is the cache rate limiter plus cache locks on the default cache store: Redis in
   production (`CACHE_STORE=redis`), the array store in tests, which do not open a Redis connection.
   A slot is held only for the HTTP call. Waiting for a slot does not count as a submit attempt.
+- The submit job also counts our generations in flight at the provider (`queued` or `processing`
+  with a provider id) against the concurrency limit and waits while it is full. A full count or a
+  `429 concurrency_limit_exceeded` waits without using an attempt. Every `5xx` is retried. When
+  attempts run out on a generation the provider may have, it stays queued (ADR 0021).
+  Spec: [008-safe-submit-failures](../specs/008-safe-submit-failures/).

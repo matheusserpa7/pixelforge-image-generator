@@ -1,6 +1,6 @@
 # 008 Safe submit failures: PRD
 
-Status: **approved** · 2026-11-16
+Status: **implemented** · 2026-11-16
 
 Runs after spec 003 is `implemented`. It relies on webhook processing and on reconciliation (polling
 and resubmission of lost submit jobs) from that spec.

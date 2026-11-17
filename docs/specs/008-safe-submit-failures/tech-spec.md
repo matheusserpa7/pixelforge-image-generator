@@ -1,6 +1,6 @@
 # 008 Safe submit failures: tech spec
 
-Status: **approved** · 2026-11-16 · PRD: [prd.md](prd.md)
+Status: **implemented** · 2026-11-16 · PRD: [prd.md](prd.md)
 
 Corrects spec 002 on top of spec 003. Implements ADR 0007, ADR 0009, ADR 0010 and ADR 0012 more
 faithfully. The provider contract is [docs/product/pixelforge-api.md](../../product/pixelforge-api.md);
