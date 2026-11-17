@@ -65,6 +65,56 @@ final readonly class ProviderUsage
         );
     }
 
+    /**
+     * Scalars only: the cache never unserializes objects (config cache.serializable_classes).
+     *
+     * @return array{start_date: string, end_date: string, cost_by_date: array<string, int>, total: int}
+     */
+    public function toCacheArray(): array
+    {
+        return [
+            'start_date' => $this->startDate->format('Y-m-d'),
+            'end_date' => $this->endDate->format('Y-m-d'),
+            'cost_by_date' => array_map(fn (Money $cost): int => $cost->nanos, $this->costByDate),
+            'total' => $this->total->nanos,
+        ];
+    }
+
+    /**
+     * @param  array<mixed>  $cached
+     */
+    public static function fromCacheArray(array $cached): self
+    {
+        $costs = $cached['cost_by_date'] ?? null;
+
+        if (! is_array($costs)) {
+            throw new InvalidArgumentException('Expected cost_by_date to be a map.');
+        }
+
+        $costByDate = [];
+
+        foreach ($costs as $date => $nanos) {
+            $day = self::parseDate($date, 'cost_by_date key');
+            $costByDate[$day->format('Y-m-d')] = self::parseNanos($nanos, 'cost_by_date value');
+        }
+
+        return new self(
+            self::parseDate($cached['start_date'] ?? null, 'start_date'),
+            self::parseDate($cached['end_date'] ?? null, 'end_date'),
+            $costByDate,
+            self::parseNanos($cached['total'] ?? null, 'total'),
+        );
+    }
+
+    private static function parseNanos(mixed $value, string $field): Money
+    {
+        if (! is_int($value) || $value < 0) {
+            throw new InvalidArgumentException("Expected {$field} to be a non-negative integer.");
+        }
+
+        return Money::ofNanos($value);
+    }
+
     private static function parseDate(mixed $value, string $field): CarbonImmutable
     {
         if (! is_string($value) || ! preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) {

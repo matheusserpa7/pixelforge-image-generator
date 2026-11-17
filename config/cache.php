@@ -36,9 +36,11 @@ return [
 
     'stores' => [
 
+        // Tests use this store. It serializes like Redis, so a cached object that
+        // `serializable_classes` would refuse fails in tests instead of in production.
         'array' => [
             'driver' => 'array',
-            'serialize' => false,
+            'serialize' => true,
         ],
 
         'database' => [

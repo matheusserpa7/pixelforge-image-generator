@@ -22,6 +22,7 @@ use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use InvalidArgumentException;
 
 /**
  * Charged, provider cost and profit per UTC day and per user, from the billing
@@ -235,20 +236,27 @@ final class BuildAdminReport
 
     /**
      * Cached per range for a minute and paid from the shared request budget; a
-     * failure is never cached and never fails the report.
+     * failure is never cached and never fails the report. The cache holds an array:
+     * it never unserializes objects, so anything else found there is fetched again.
      */
     private function providerUsage(CarbonImmutable $start, CarbonImmutable $end): ?ProviderUsage
     {
         $key = sprintf('admin-report-usage:%s:%s', $start->format('Y-m-d'), $end->format('Y-m-d'));
+        $cached = Cache::get($key);
+
+        if (is_array($cached)) {
+            try {
+                return ProviderUsage::fromCacheArray($cached);
+            } catch (InvalidArgumentException) {
+                // Unreadable entry: fetch again and overwrite it below.
+            }
+        }
 
         try {
-            return Cache::remember(
-                $key,
-                self::USAGE_CACHE_SECONDS,
-                fn (): ProviderUsage => $this->limiter->attempt(
-                    fn (): ProviderUsage => $this->client->usage($start, $end),
-                ),
-            );
+            $usage = $this->limiter->attempt(fn (): ProviderUsage => $this->client->usage($start, $end));
+            Cache::put($key, $usage->toCacheArray(), self::USAGE_CACHE_SECONDS);
+
+            return $usage;
         } catch (PixelforgeBusy) {
             Log::warning('Admin report: Pixelforge usage skipped, request budget spent.');
         } catch (PixelforgeException $exception) {

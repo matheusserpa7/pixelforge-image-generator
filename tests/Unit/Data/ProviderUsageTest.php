@@ -47,3 +47,24 @@ it('rejects a bad date or a missing total', function (array $overrides) {
     'missing total' => [['total' => null]],
     'wrong object' => [['object' => 'generation']],
 ])->throws(InvalidArgumentException::class);
+
+it('round-trips through its cache array of scalars', function () {
+    $usage = ProviderUsage::fromDecoded(usagePayload());
+    $cached = $usage->toCacheArray();
+
+    expect($cached)->toBe([
+        'start_date' => '2026-11-01',
+        'end_date' => '2026-11-02',
+        'cost_by_date' => ['2026-11-01' => 169_080_000, '2026-11-02' => 0],
+        'total' => 169_080_000,
+    ])->and(ProviderUsage::fromCacheArray($cached))->toEqual($usage);
+});
+
+it('rejects an unreadable cache array', function (array $cached) {
+    ProviderUsage::fromCacheArray($cached);
+})->with([
+    'empty' => [[]],
+    'negative total' => [['start_date' => '2026-11-01', 'end_date' => '2026-11-01', 'cost_by_date' => [], 'total' => -1]],
+    'string nanos' => [['start_date' => '2026-11-01', 'end_date' => '2026-11-01', 'cost_by_date' => ['2026-11-01' => '5'], 'total' => 5]],
+    'bad date key' => [['start_date' => '2026-11-01', 'end_date' => '2026-11-01', 'cost_by_date' => ['nope' => 5], 'total' => 5]],
+])->throws(InvalidArgumentException::class);

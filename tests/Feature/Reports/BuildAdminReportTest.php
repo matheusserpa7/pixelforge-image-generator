@@ -222,6 +222,20 @@ it('calls usage once for two builds of the same range within the cache window', 
     expect($this->client->usageCalls)->toHaveCount(2);
 });
 
+it('fetches usage again when the cached entry cannot be read back', function () {
+    // What Redis hands back for an object once serializable_classes refuses its class.
+    Cache::put('admin-report-usage:2026-03-10:2026-03-12', new ArrayObject, 60);
+
+    $report = buildReport('2026-03-10', '2026-03-12');
+
+    expect($report->providerUsageAvailable)->toBeTrue()
+        ->and($this->client->usageCalls)->toHaveCount(1);
+
+    buildReport('2026-03-10', '2026-03-12');
+
+    expect($this->client->usageCalls)->toHaveCount(1);
+});
+
 it('lists in-flight generations with a provider id older than an hour, including a deleted user', function () {
     $user = User::factory()->create(['email' => 'ada@example.test']);
     $old = Generation::factory()->create([
