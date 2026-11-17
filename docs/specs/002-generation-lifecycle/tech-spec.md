@@ -1,6 +1,6 @@
 # 002 Generation lifecycle: tech spec
 
-Status: **approved** · 2026-11-16 · PRD: [prd.md](prd.md)
+Status: **implemented** · 2026-11-16 · PRD: [prd.md](prd.md)
 
 Implements ADR 0004, ADR 0005, ADR 0006, ADR 0007, ADR 0009, ADR 0010, ADR 0012 and ADR 0014 on top of
 the client and the calculators from spec 001. The provider contract is

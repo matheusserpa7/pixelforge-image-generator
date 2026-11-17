@@ -1,6 +1,6 @@
 # 002 Generation lifecycle: tasks
 
-Status: **approved** · 2026-11-16 · Tech spec: [tech-spec.md](tech-spec.md)
+Status: **implemented** · 2026-11-16 · Tech spec: [tech-spec.md](tech-spec.md)
 
 - [x] **T1. Generation record and submit.** `generations` migration, `Generation` model, factory,
       `User::generations`, `scopeForUser`, `GenerationPolicy`, `StoreGenerationRequest`,

@@ -19,3 +19,6 @@ is not retried.
 
 - Bursts of user requests wait in the queue instead of failing.
 - Under load users see "queued" for longer; the UI explains why.
+- The limiter is the cache rate limiter plus cache locks on the default cache store: Redis in
+  production (`CACHE_STORE=redis`), the array store in tests, which do not open a Redis connection.
+  A slot is held only for the HTTP call. Waiting for a slot does not count as a submit attempt.

@@ -9,8 +9,9 @@ This is a take-home assessment for PromptEdit. The brief is summarised in
 [docs/product/overview.md](docs/product/overview.md) and the API in
 [docs/product/pixelforge-api.md](docs/product/pixelforge-api.md).
 
-> **Status:** spec 001 done. The app can talk to Pixelforge, cache the price table, and compute an
-> estimate and the actual cost. Creating and charging a generation is next, see the [roadmap](docs/roadmap.md).
+> **Status:** spec 002 done. A signed-in user can submit a generation. A job sends it to Pixelforge
+> under the provider's limits, and a success is charged once. Webhooks are next, see the
+> [roadmap](docs/roadmap.md).
 
 ## Run it
 
