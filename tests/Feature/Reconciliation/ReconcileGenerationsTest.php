@@ -117,6 +117,14 @@ it('schedules the command every minute', function () {
         ->and($event->withoutOverlapping)->toBeTrue();
 });
 
+it('sends the scheduled command output to the container stdout so its logs are kept', function () {
+    $event = collect(app(Schedule::class)->events())
+        ->first(fn ($event) => str_contains((string) $event->command, 'pixelforge:reconcile'));
+
+    expect($event->output)->toBe('/proc/1/fd/1')
+        ->and($event->shouldAppendOutput)->toBeTrue();
+});
+
 it('runs through the artisan command', function () {
     staleGeneration(['status' => GenerationStatus::Processing, 'provider_id' => 'gen_1'], 500);
 
