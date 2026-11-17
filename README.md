@@ -131,6 +131,10 @@ Production has to be watched, not just deployed. What an operator has, all behin
 | **Error tracking**                    | Sentry, switched on by `SENTRY_LARAVEL_DSN`. Failed jobs and stuck generations are logged at error level with their context. |
 | **Health** (`/health`)                | One public status for uptime checks. The details of what failed go to the logs, not to the public. |
 
+Production admin report. Provider cost and Pixelforge cost are the same on every day.
+
+![Admin report in production: every day matches Pixelforge usage](docs/screenshots/admin-report.png)
+
 | Horizon: queue health, no failed jobs                     | Horizon: one generation, job by job                       |
 | --------------------------------------------------------- | --------------------------------------------------------- |
 | ![Horizon dashboard with throughput and zero failed jobs](docs/screenshots/horizon.png) | ![Horizon completed jobs: SubmitGeneration, PollGeneration, DownloadGenerationImage](docs/screenshots/horizon-jobs.png) |
