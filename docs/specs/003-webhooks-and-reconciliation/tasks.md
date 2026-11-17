@@ -2,7 +2,7 @@
 
 Status: **approved** · 2026-11-16 · Tech spec: [tech-spec.md](tech-spec.md)
 
-- [ ] **T1. Receive and record webhooks.** `webhook_events` migration, `WebhookEvent` model,
+- [x] **T1. Receive and record webhooks.** `webhook_events` migration, `WebhookEvent` model,
       `WebhookEventOutcome`, `WebhookReceipt`, `WebhookSignature`, `ReceivePixelforgeWebhook`,
       `PixelforgeWebhookController`, the `POST /webhooks/pixelforge` route, the test helpers in
       `tests/Support/Webhooks.php`, and an empty `ProcessWebhookEvent` job (constructor, `tries`,
