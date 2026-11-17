@@ -40,12 +40,19 @@ final class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        $isAdmin = $request->user() !== null && Gate::forUser($request->user())->allows('admin');
+
         return [
             ...parent::share($request),
             'name' => config('app.name'),
             'auth' => [
                 'user' => $request->user(),
-                'isAdmin' => $request->user() !== null && Gate::forUser($request->user())->allows('admin'),
+                'isAdmin' => $isAdmin,
+                // Horizon and Pulse are full pages outside Inertia; their paths are configurable.
+                'dashboards' => $isAdmin ? [
+                    'horizon' => url(config()->string('horizon.path')),
+                    'pulse' => url(config()->string('pulse.path')),
+                ] : null,
             ],
             'credits' => fn (): ?array => $request->user() === null ? null : [
                 'available' => MoneyView::of(app(GetCreditBalance::class)->handle($request->user())->available()->nanos),

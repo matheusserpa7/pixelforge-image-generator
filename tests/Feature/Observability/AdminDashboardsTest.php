@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Models\User;
+use Inertia\Testing\AssertableInertia as Assert;
 
 dataset('dashboards', ['/horizon', '/pulse']);
 
@@ -23,3 +24,17 @@ it('serves internal dashboards without CSP, which their inline scripts would bre
         ->assertHeaderMissing('Content-Security-Policy')
         ->assertHeader('X-Frame-Options', 'DENY');
 })->with('dashboards');
+
+it('shares the dashboard links with admins only, at their configured paths', function () {
+    config(['horizon.path' => 'ops/queues', 'pulse.path' => 'ops/metrics']);
+
+    $this->actingAs(User::factory()->admin()->create())
+        ->get(route('generations.index'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('auth.dashboards.horizon', url('ops/queues'))
+            ->where('auth.dashboards.pulse', url('ops/metrics')));
+
+    $this->actingAs(User::factory()->create())
+        ->get(route('generations.index'))
+        ->assertInertia(fn (Assert $page) => $page->where('auth.dashboards', null));
+});

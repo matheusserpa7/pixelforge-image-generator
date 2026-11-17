@@ -12,4 +12,6 @@ export type NavItem = {
     icon?: LucideIcon;
     badge?: string;
     isActive?: boolean;
+    /** A full page outside Inertia (Horizon, Pulse): plain link, new tab. */
+    external?: boolean;
 };

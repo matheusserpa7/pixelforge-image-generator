@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link, usePage } from '@inertiajs/vue3';
-import { ChartColumn, Image, Wallet } from '@lucide/vue';
+import { Activity, ChartColumn, Image, Layers, Wallet } from '@lucide/vue';
 import { computed } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
 import NavMain from '@/components/NavMain.vue';
@@ -33,10 +33,31 @@ const mainNavItems = computed<NavItem[]>(() => [
         icon: Wallet,
         badge: page.props.credits?.available.display,
     },
-    ...(page.props.auth.isAdmin
-        ? [{ title: 'Report', href: report(), icon: ChartColumn }]
-        : []),
 ]);
+
+const adminNavItems = computed<NavItem[]>(() => {
+    const dashboards = page.props.auth.dashboards;
+
+    if (!page.props.auth.isAdmin || dashboards === null) {
+        return [];
+    }
+
+    return [
+        { title: 'Report', href: report(), icon: ChartColumn },
+        {
+            title: 'Queues (Horizon)',
+            href: dashboards.horizon,
+            icon: Layers,
+            external: true,
+        },
+        {
+            title: 'Metrics (Pulse)',
+            href: dashboards.pulse,
+            icon: Activity,
+            external: true,
+        },
+    ];
+});
 </script>
 
 <template>
@@ -55,6 +76,11 @@ const mainNavItems = computed<NavItem[]>(() => [
 
         <SidebarContent>
             <NavMain :items="mainNavItems" />
+            <NavMain
+                v-if="adminNavItems.length > 0"
+                label="Admin"
+                :items="adminNavItems"
+            />
         </SidebarContent>
 
         <SidebarFooter>

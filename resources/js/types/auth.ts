@@ -12,4 +12,5 @@ export type User = {
 export type Auth = {
     user: User;
     isAdmin: boolean;
+    dashboards: { horizon: string; pulse: string } | null;
 };
