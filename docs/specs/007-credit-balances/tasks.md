@@ -2,7 +2,7 @@
 
 Status: **approved** · 2026-11-17 · Tech spec: [tech-spec.md](tech-spec.md)
 
-- [ ] **T1. Balance and blocking.** `credit_purchases` migration with the opening-balance backfill
+- [x] **T1. Balance and blocking.** `credit_purchases` migration with the opening-balance backfill
       (`OpeningBalances::backfill()`), `CreditPurchase` model and `CreditPurchaseKind` enum,
       `CreditBalance` DTO, `GetCreditBalance`, `InsufficientCredits`, the user-row lock and check in
       `CreateGeneration`, `store` error and `estimate` fields (`available`, `affordable`),

@@ -3,12 +3,14 @@
 declare(strict_types=1);
 
 use App\Actions\GetCachedPricing;
+use App\Enums\GenerationStatus;
 use App\Models\Generation;
 use App\Models\User;
 use App\Services\Pixelforge\FakePixelforgeClient;
 use App\Services\Pixelforge\PixelforgeClient;
 use App\Services\Pixelforge\PixelforgeException;
 use App\Services\Pixelforge\SamplePricing;
+use App\Support\Money\Money;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 
@@ -42,12 +44,14 @@ it('returns the worked example estimate as money views', function () {
     $client = new FakePixelforgeClient;
     $this->app->instance(PixelforgeClient::class, $client);
 
-    $this->actingAs(User::factory()->create())
+    $this->actingAs(User::factory()->withCredit()->create())
         ->postJson(route('generations.estimate'), workedExamplePayload())
         ->assertOk()
         ->assertExactJson([
             'estimated_charge' => ['amount' => '0.412562500', 'display' => '$0.4126'],
             'maximum_charge' => ['amount' => '0.467343750', 'display' => '$0.4673'],
+            'available' => ['amount' => '10.000000000', 'display' => '$10.0000'],
+            'affordable' => true,
         ]);
 
     expect(Generation::query()->count())->toBe(0)
@@ -60,7 +64,12 @@ it('accepts an empty prompt and no references', function () {
     $this->actingAs(User::factory()->create())
         ->postJson(route('generations.estimate'), ['prompt' => '', 'size' => '1024x1024', 'quality' => 'low'])
         ->assertOk()
-        ->assertJsonStructure(['estimated_charge' => ['amount', 'display'], 'maximum_charge' => ['amount', 'display']]);
+        ->assertJsonStructure([
+            'estimated_charge' => ['amount', 'display'],
+            'maximum_charge' => ['amount', 'display'],
+            'available' => ['amount', 'display'],
+            'affordable',
+        ]);
 });
 
 it('rejects invalid input with 422', function (array $overrides) {
@@ -102,4 +111,37 @@ it('limits estimates to 60 per minute per user', function () {
     }
 
     $this->postJson(route('generations.estimate'), workedExamplePayload())->assertStatus(429);
+});
+
+it('reports affordability against the available credit', function (string $usd, bool $affordable) {
+    seedEstimatePricing();
+
+    $user = User::factory()->withCredit($usd)->create();
+
+    $this->actingAs($user)
+        ->postJson(route('generations.estimate'), workedExamplePayload())
+        ->assertOk()
+        ->assertJsonPath('affordable', $affordable)
+        ->assertJsonPath('available.amount', Money::fromDecimal($usd)->toDecimalString());
+})->with([
+    'exactly the maximum' => ['0.467343750', true],
+    'one nano short' => ['0.467343749', false],
+    'plenty' => ['5', true],
+]);
+
+it('subtracts credit held by generations in progress from the available credit', function () {
+    seedEstimatePricing();
+
+    $user = User::factory()->withCredit('1')->create();
+    Generation::factory()->create([
+        'user_id' => $user->id,
+        'status' => GenerationStatus::Processing,
+        'maximum_charge_nanos' => 600_000_000,
+    ]);
+
+    $this->actingAs($user)
+        ->postJson(route('generations.estimate'), workedExamplePayload())
+        ->assertOk()
+        ->assertJsonPath('available.amount', '0.400000000')
+        ->assertJsonPath('affordable', false);
 });

@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace Database\Factories;
 
+use App\Enums\CreditPurchaseKind;
+use App\Models\CreditPurchase;
 use App\Models\User;
+use App\Support\Money\Money;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -44,6 +47,21 @@ class UserFactory extends Factory
         return $this->state(fn (array $attributes) => [
             'is_admin' => true,
         ]);
+    }
+
+    /**
+     * Fund the user with a credit purchase of the given USD decimal string.
+     */
+    public function withCredit(string $usd = '10'): static
+    {
+        return $this->afterCreating(function (User $user) use ($usd): void {
+            CreditPurchase::query()->create([
+                'user_id' => $user->id,
+                'kind' => CreditPurchaseKind::Purchase,
+                'amount_nanos' => Money::fromDecimal($usd)->nanos,
+                'idempotency_key' => (string) Str::ulid(),
+            ]);
+        });
     }
 
     /**

@@ -11,12 +11,14 @@ use App\Jobs\SubmitGeneration;
 use App\Models\Generation;
 use App\Models\User;
 use App\Services\Billing\CostEstimator;
+use App\Services\Billing\InsufficientCredits;
 use Illuminate\Support\Facades\DB;
 
 final class CreateGeneration
 {
     public function __construct(
         private readonly GetCachedPricing $getCachedPricing,
+        private readonly GetCreditBalance $getCreditBalance,
     ) {}
 
     /**
@@ -41,6 +43,15 @@ final class CreateGeneration
         );
 
         return DB::transaction(function () use ($user, $prompt, $size, $quality, $referenceImages, $estimate): Generation {
+            // Serialize concurrent creates for this user so two submits cannot spend the same credit.
+            User::query()->whereKey($user->id)->lockForUpdate()->firstOrFail();
+
+            $available = $this->getCreditBalance->handle($user)->available();
+
+            if ($estimate->maximumCharge->nanos > $available->nanos) {
+                throw new InsufficientCredits($estimate->maximumCharge, $available);
+            }
+
             $generation = Generation::query()->create([
                 'user_id' => $user->id,
                 'status' => GenerationStatus::Queued,

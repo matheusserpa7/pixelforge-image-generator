@@ -24,7 +24,7 @@ class DatabaseSeeder extends Seeder
         }
 
         // Local development accounts; the factory password is "password".
-        User::factory()->create([
+        User::factory()->withCredit('10')->create([
             'name' => 'Test User',
             'email' => 'test@example.com',
         ]);

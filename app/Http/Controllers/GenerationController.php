@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Actions\CreateGeneration;
 use App\Actions\EstimateGeneration;
+use App\Actions\GetCreditBalance;
 use App\Enums\ImageQuality;
 use App\Enums\ImageSize;
 use App\Http\Requests\EstimateGenerationRequest;
@@ -14,6 +15,7 @@ use App\Http\Resources\GenerationResource;
 use App\Http\Resources\MoneyView;
 use App\Models\Generation;
 use App\Models\User;
+use App\Services\Billing\InsufficientCredits;
 use App\Services\Billing\PricingUnavailable;
 use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\JsonResponse;
@@ -68,6 +70,8 @@ final class GenerationController extends Controller
             );
         } catch (PricingUnavailable $exception) {
             return back()->withErrors(['pricing' => $exception->getMessage()]);
+        } catch (InsufficientCredits $exception) {
+            return back()->withErrors(['credits' => $exception->getMessage()]);
         }
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Generation queued.']);
@@ -77,8 +81,12 @@ final class GenerationController extends Controller
             ->with('generation_id', $generation->id);
     }
 
-    public function estimate(EstimateGenerationRequest $request, EstimateGeneration $estimate): JsonResponse
-    {
+    public function estimate(
+        EstimateGenerationRequest $request,
+        EstimateGeneration $estimate,
+        GetCreditBalance $getCreditBalance,
+        #[CurrentUser] User $user,
+    ): JsonResponse {
         try {
             $result = $estimate->handle(
                 $request->prompt(),
@@ -90,9 +98,13 @@ final class GenerationController extends Controller
             return response()->json(['message' => $exception->getMessage()], 503);
         }
 
+        $available = $getCreditBalance->handle($user)->available();
+
         return response()->json([
             'estimated_charge' => MoneyView::of($result->estimatedCharge->nanos),
             'maximum_charge' => MoneyView::of($result->maximumCharge->nanos),
+            'available' => MoneyView::of($available->nanos),
+            'affordable' => $result->maximumCharge->nanos <= $available->nanos,
         ]);
     }
 }

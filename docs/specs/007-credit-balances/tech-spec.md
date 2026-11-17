@@ -58,7 +58,7 @@ One migration creates the table and, in the same `up()`, calls
 `App\Support\Billing\OpeningBalances::backfill()`, which backfills one `opening_balance` row per
 user that has ledger charges, with `amount_nanos = Σ charge_nanos` of that user (a single
 `INSERT … SELECT user_id, 'opening_balance', SUM(charge_nanos), NOW() FROM ledger_entries WHERE
-user_id IS NOT NULL GROUP BY user_id`). Existing users therefore start at a balance of exactly zero.
+user_id IS NOT NULL GROUP BY user_id HAVING SUM(charge_nanos) > 0`). Existing users therefore start at a balance of exactly zero.
 `down()` drops the table. Users with no charges get no row.
 
 ### Config

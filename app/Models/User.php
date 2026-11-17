@@ -52,4 +52,12 @@ class User extends Authenticatable
     {
         return $this->hasMany(Generation::class);
     }
+
+    /**
+     * @return HasMany<CreditPurchase, $this>
+     */
+    public function creditPurchases(): HasMany
+    {
+        return $this->hasMany(CreditPurchase::class);
+    }
 }

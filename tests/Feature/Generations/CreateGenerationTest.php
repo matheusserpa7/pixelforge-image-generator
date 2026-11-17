@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Actions\CreateGeneration;
 use App\Actions\GetCachedPricing;
 use App\Enums\GenerationStatus;
 use App\Enums\ImageQuality;
@@ -15,6 +16,7 @@ use App\Services\Pixelforge\PixelforgeException;
 use App\Services\Pixelforge\SamplePricing;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
@@ -54,7 +56,7 @@ it('redirects guests to login and stores nothing', function () {
 });
 
 it('rejects invalid input and stores nothing', function (array $payload) {
-    $user = User::factory()->create();
+    $user = User::factory()->withCredit()->create();
     $this->actingAs($user);
     seedPricingCache();
 
@@ -85,7 +87,7 @@ it('rejects invalid input and stores nothing', function (array $payload) {
 ]);
 
 it('uses a readable attribute name in reference url errors', function () {
-    $this->actingAs(User::factory()->create());
+    $this->actingAs(User::factory()->withCredit()->create());
 
     $response = $this->postJson(route('generations.store'), validGenerationPayload([
         'reference_images' => ['ftp://example.com/a.png'],
@@ -97,7 +99,7 @@ it('uses a readable attribute name in reference url errors', function () {
 });
 
 it('stores the worked example estimate in nano-usd', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->withCredit()->create();
     $this->actingAs($user);
     seedPricingCache();
 
@@ -133,7 +135,7 @@ it('stores the worked example estimate in nano-usd', function () {
 });
 
 it('defaults omitted size and quality', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->withCredit()->create();
     $this->actingAs($user);
     seedPricingCache();
 
@@ -148,7 +150,7 @@ it('defaults omitted size and quality', function () {
 });
 
 it('creates two generations with distinct ulids', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->withCredit()->create();
     $this->actingAs($user);
     seedPricingCache();
 
@@ -164,7 +166,7 @@ it('creates two generations with distinct ulids', function () {
 });
 
 it('stores nothing when pricing is unavailable', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->withCredit()->create();
     $this->actingAs($user);
 
     /** @var FakePixelforgeClient $client */
@@ -181,7 +183,7 @@ it('stores nothing when pricing is unavailable', function () {
 });
 
 it('stores nothing when the pricing cache is empty and pricing cannot be fetched', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->withCredit()->create();
     $this->actingAs($user);
 
     /** @var FakePixelforgeClient $client */
@@ -197,7 +199,7 @@ it('stores nothing when the pricing cache is empty and pricing cannot be fetched
 });
 
 it('dispatches a submit job after commit', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->withCredit()->create();
     $this->actingAs($user);
     seedPricingCache();
 
@@ -213,8 +215,8 @@ it('dispatches a submit job after commit', function () {
 });
 
 it('scopes generations to the owner and enforces view policy', function () {
-    $owner = User::factory()->create();
-    $other = User::factory()->create();
+    $owner = User::factory()->withCredit()->create();
+    $other = User::factory()->withCredit()->create();
     seedPricingCache();
 
     $this->actingAs($owner);
@@ -229,7 +231,7 @@ it('scopes generations to the owner and enforces view policy', function () {
 });
 
 it('nulls user_id on the generation when the user is deleted', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->withCredit()->create();
     $this->actingAs($user);
     seedPricingCache();
 
@@ -247,7 +249,7 @@ it('nulls user_id on the generation when the user is deleted', function () {
 });
 
 it('flashes a toast after a successful submit', function () {
-    $this->actingAs(User::factory()->create());
+    $this->actingAs(User::factory()->withCredit()->create());
     seedPricingCache();
 
     $this->post(route('generations.store'), validGenerationPayload())
@@ -256,7 +258,7 @@ it('flashes a toast after a successful submit', function () {
 });
 
 it('turns the eleventh submit in a minute into a readable error and stores nothing', function () {
-    $this->actingAs(User::factory()->create());
+    $this->actingAs(User::factory()->withCredit()->create());
     seedPricingCache();
 
     foreach (range(1, 10) as $_) {
@@ -270,4 +272,87 @@ it('turns the eleventh submit in a minute into a readable error and stores nothi
 
     expect(session('errors')->first('generation'))->toMatch('/^You are submitting too fast\. Try again in \d+ seconds\.$/')
         ->and(Generation::query()->count())->toBe(10);
+});
+
+function worked_example_payload(): array
+{
+    return validGenerationPayload([
+        'prompt' => str_repeat('a', 400),
+        'size' => ImageSize::Landscape->value,
+        'quality' => ImageQuality::High->value,
+        'reference_images' => ['https://example.com/a.jpg', 'https://example.com/b.jpg'],
+    ]);
+}
+
+it('rejects a generation whose maximum exceeds the available credit', function () {
+    $this->actingAs(User::factory()->withCredit('0.467343749')->create());
+    seedPricingCache();
+
+    $this->from(route('generations.index'))
+        ->post(route('generations.store'), worked_example_payload())
+        ->assertRedirect(route('generations.index'))
+        ->assertSessionHasErrors(['credits']);
+
+    expect(session('errors')->first('credits'))->toContain('$0.4673')->toContain('available')
+        ->and(Generation::query()->count())->toBe(0);
+
+    Queue::assertNothingPushed();
+});
+
+it('tells a user with no credit the maximum charge and the available credit', function () {
+    $this->actingAs(User::factory()->create());
+    seedPricingCache();
+
+    $this->from(route('generations.index'))
+        ->post(route('generations.store'), worked_example_payload())
+        ->assertSessionHasErrors(['credits']);
+
+    expect(session('errors')->first('credits'))->toBe(
+        'Not enough credits. This generation can cost up to $0.4673 and you have $0.0000 available. Buy credits to continue.',
+    )->and(Generation::query()->count())->toBe(0);
+
+    Queue::assertNothingPushed();
+});
+
+it('accepts a generation whose maximum equals the available credit exactly', function () {
+    $this->actingAs(User::factory()->withCredit('0.467343750')->create());
+    seedPricingCache();
+
+    $this->post(route('generations.store'), worked_example_payload())
+        ->assertRedirect(route('generations.index'));
+
+    expect(Generation::query()->sole()->maximum_charge_nanos)->toBe(467_343_750);
+});
+
+it('holds the maximum of a queued generation until it fails', function () {
+    $this->actingAs(User::factory()->withCredit('0.5')->create());
+    seedPricingCache();
+
+    $this->post(route('generations.store'), worked_example_payload())->assertRedirect(route('generations.index'));
+    $first = Generation::query()->sole();
+
+    $this->post(route('generations.store'), worked_example_payload())->assertSessionHasErrors(['credits']);
+    expect(Generation::query()->count())->toBe(1);
+
+    $first->forceFill(['status' => GenerationStatus::Failed])->save();
+
+    $this->post(route('generations.store'), worked_example_payload())->assertRedirect(route('generations.index'));
+    expect(Generation::query()->count())->toBe(2);
+});
+
+it('locks the user row inside the create transaction before inserting', function () {
+    $user = User::factory()->withCredit()->create();
+    seedPricingCache();
+
+    DB::enableQueryLog();
+
+    app(CreateGeneration::class)->handle($user, 'A cat.', ImageSize::Square, ImageQuality::Low, []);
+
+    $queries = collect(DB::getQueryLog())->pluck('query');
+    $lock = $queries->search(fn (string $sql): bool => str_contains($sql, 'from `users`') && str_contains($sql, 'for update'));
+    $insert = $queries->search(fn (string $sql): bool => str_contains($sql, 'insert into `generations`'));
+
+    expect($lock)->not->toBeFalse()
+        ->and($insert)->not->toBeFalse()
+        ->and($lock)->toBeLessThan($insert);
 });

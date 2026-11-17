@@ -79,5 +79,9 @@ test('billing and pixelforge code has no float types, casts or literals', functi
     expectNoFloatTokensInPhpPaths([
         __DIR__.'/../../app/Services/Billing/*.php',
         __DIR__.'/../../app/Services/Pixelforge/*.php',
+        __DIR__.'/../../app/Support/Billing/*.php',
+        __DIR__.'/../../app/Data/CreditBalance.php',
+        __DIR__.'/../../app/Actions/GetCreditBalance.php',
+        __DIR__.'/../../app/Actions/CreateGeneration.php',
     ]);
 });
