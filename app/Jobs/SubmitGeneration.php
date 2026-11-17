@@ -105,6 +105,7 @@ final class SubmitGeneration implements ShouldQueue
             ->count();
 
         if ($inFlight >= PixelforgeRequestLimiter::concurrencyLimit()) {
+            $this->touch();
             $this->release(PixelforgeRequestLimiter::concurrencyRetrySeconds());
 
             return;
@@ -130,6 +131,7 @@ final class SubmitGeneration implements ShouldQueue
                 return $client->create($request);
             });
         } catch (PixelforgeBusy $busy) {
+            $this->touch();
             $this->release($busy->retryAfterSeconds);
 
             return;
@@ -143,11 +145,12 @@ final class SubmitGeneration implements ShouldQueue
             };
             $generation->save();
 
-            if ($exception->status === 429 && $exception->errorCode === 'concurrency_limit_exceeded') {
+            if ($exception->status === 429 && in_array($exception->errorCode, ['concurrency_limit_exceeded', 'rate_limit_exceeded'], true)) {
                 if ($generation->submit_attempts > 0) {
                     $generation->decrement('submit_attempts');
                 }
 
+                $this->touch();
                 $this->release(max($exception->retryAfterSeconds ?? 0, PixelforgeRequestLimiter::concurrencyRetrySeconds()));
 
                 return;
@@ -159,6 +162,7 @@ final class SubmitGeneration implements ShouldQueue
                     'error_code' => $exception->errorCode,
                 ]);
 
+                $this->touch();
                 $this->release(SubmitBackoff::seconds($exception->retryAfterSeconds, $generation->submit_attempts));
 
                 return;
@@ -189,5 +193,13 @@ final class SubmitGeneration implements ShouldQueue
                 'generation_id' => $generation->id,
             ]);
         }
+    }
+
+    /**
+     * Mark the row as recently handled so the reconciler does not resubmit a job that is only waiting.
+     */
+    private function touch(): void
+    {
+        Generation::query()->whereKey($this->generationId)->update(['updated_at' => now()]);
     }
 }

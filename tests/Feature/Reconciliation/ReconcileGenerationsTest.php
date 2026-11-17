@@ -69,6 +69,15 @@ it('resubmits a queued generation without provider id after ten minutes', functi
     Queue::assertPushed(SubmitGeneration::class, 1);
 });
 
+it('does not resubmit a queued generation whose job is waiting', function () {
+    $generation = staleGeneration(['status' => GenerationStatus::Queued, 'provider_id' => null], 601);
+    Generation::query()->whereKey($generation->id)->update(['updated_at' => now()->subSeconds(30)]);
+
+    app(ReconcileGenerations::class)->handle();
+
+    Queue::assertNotPushed(SubmitGeneration::class);
+});
+
 it('polls a stale queued generation that already has a provider id', function () {
     $generation = staleGeneration(['status' => GenerationStatus::Queued, 'provider_id' => 'gen_1'], 121);
 

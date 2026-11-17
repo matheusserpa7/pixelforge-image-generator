@@ -85,3 +85,31 @@ it('attempt throws PixelforgeBusy without running the callback when the budget i
         expect($busy->retryAfterSeconds)->toBeGreaterThanOrEqual(1)->and($ran)->toBeFalse();
     }
 });
+
+it('counts the hit before checking the budget in run and attempt', function () {
+    config(['services.pixelforge.requests_per_minute' => 1]);
+
+    $limiter = new PixelforgeRequestLimiter;
+    $ran = 0;
+
+    $limiter->run(function () use (&$ran): void {
+        $ran++;
+    });
+
+    expect(fn () => $limiter->run(function () use (&$ran): void {
+        $ran++;
+    }))->toThrow(PixelforgeBusy::class)
+        ->and(RateLimiter::attempts(PixelforgeRequestLimiter::RATE_KEY))->toBe(2);
+
+    RateLimiter::clear(PixelforgeRequestLimiter::RATE_KEY);
+
+    $limiter->attempt(function () use (&$ran): void {
+        $ran++;
+    });
+
+    expect(fn () => $limiter->attempt(function () use (&$ran): void {
+        $ran++;
+    }))->toThrow(PixelforgeBusy::class)
+        ->and(RateLimiter::attempts(PixelforgeRequestLimiter::RATE_KEY))->toBe(2)
+        ->and($ran)->toBe(2);
+});

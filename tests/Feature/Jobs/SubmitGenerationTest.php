@@ -91,29 +91,72 @@ it('does not call create again when the job runs a second time', function () {
     expect($client->created)->toHaveCount(1);
 });
 
-it('releases with backoff on a retryable rate limit', function () {
+it('waits on a per-minute 429 without using an attempt', function () {
     $client = bindFakePixelforgeClient();
-    $client->failure = PixelforgeException::fromProvider(
-        429,
-        'rate_limit_exceeded',
-        'Slow down.',
-        null,
-        7,
-    );
-
+    $client->failure = PixelforgeException::fromProvider(429, 'rate_limit_exceeded', 'Slow down.', null, 7);
     $generation = Generation::factory()->create(['submit_attempts' => 0]);
 
     $job = runSubmitJob($generation, fakeQueue: true);
-
     $generation->refresh();
 
     expect($generation->status)->toBe(GenerationStatus::Queued)
         ->and($generation->provider_id)->toBeNull()
-        ->and($generation->submit_attempts)->toBe(1)
-        ->and(LedgerEntry::query()->count())->toBe(0)
-        ->and($client->created)->toBeEmpty();
+        ->and($generation->submit_attempts)->toBe(0)
+        ->and(LedgerEntry::query()->count())->toBe(0);
 
-    $job->assertReleased(8);
+    $job->assertReleased(7);
+});
+
+it('never fails a generation after many per-minute 429s in a row', function () {
+    config(['services.pixelforge.max_submit_attempts' => 1]);
+
+    $client = bindFakePixelforgeClient();
+    $generation = Generation::factory()->create();
+
+    for ($i = 0; $i < 10; $i++) {
+        $client->failure = PixelforgeException::fromProvider(429, 'rate_limit_exceeded', 'Slow down.', null, 7);
+        runSubmitJob($generation, fakeQueue: true)->assertReleased(7);
+    }
+
+    $generation->refresh();
+
+    expect($generation->status)->toBe(GenerationStatus::Queued)
+        ->and($generation->submit_attempts)->toBe(0);
+});
+
+it('touches updated_at on every wait path', function () {
+    $this->freezeTime();
+
+    $stale = fn (Generation $g) => Generation::query()->whereKey($g->id)->update(['updated_at' => now()->subHour()]);
+
+    // Provider 429 (per-minute).
+    $client = bindFakePixelforgeClient();
+    $client->failure = PixelforgeException::fromProvider(429, 'rate_limit_exceeded', 'Slow down.', null, 7);
+    $generation = Generation::factory()->create();
+    $stale($generation);
+    runSubmitJob($generation, fakeQueue: true);
+    expect($generation->refresh()->updated_at->toDateTimeString())->toBe(now()->toDateTimeString());
+
+    // Retryable error backoff.
+    $client->failure = PixelforgeException::fromProvider(503, 'overloaded', 'Busy.', null, 3);
+    $stale($generation);
+    runSubmitJob($generation, fakeQueue: true);
+    expect($generation->refresh()->updated_at->toDateTimeString())->toBe(now()->toDateTimeString());
+
+    // Limiter busy (per-minute budget spent).
+    $client->failure = null;
+    config(['services.pixelforge.requests_per_minute' => 1]);
+    RateLimiter::hit(PixelforgeRequestLimiter::RATE_KEY, 60);
+    $stale($generation);
+    runSubmitJob($generation, fakeQueue: true);
+    expect($generation->refresh()->updated_at->toDateTimeString())->toBe(now()->toDateTimeString());
+
+    // In-flight count full.
+    config(['services.pixelforge.requests_per_minute' => 60, 'services.pixelforge.concurrency_limit' => 1]);
+    Generation::factory()->create(['status' => GenerationStatus::Processing, 'provider_id' => 'gen_busy']);
+    $stale($generation);
+    runSubmitJob($generation, fakeQueue: true);
+    expect($generation->refresh()->updated_at->toDateTimeString())->toBe(now()->toDateTimeString());
 });
 
 it('marks the generation failed after the max submit attempts on retryable errors', function () {
@@ -121,8 +164,8 @@ it('marks the generation failed after the max submit attempts on retryable error
 
     $client = bindFakePixelforgeClient();
     $client->failure = PixelforgeException::fromProvider(
-        429,
-        'rate_limit_exceeded',
+        503,
+        'overloaded',
         'Slow down.',
         null,
         7,
@@ -133,8 +176,8 @@ it('marks the generation failed after the max submit attempts on retryable error
     runSubmitJob($generation, fakeQueue: true);
 
     $client->failure = PixelforgeException::fromProvider(
-        429,
-        'rate_limit_exceeded',
+        503,
+        'overloaded',
         'Slow down.',
         null,
         7,
@@ -145,8 +188,8 @@ it('marks the generation failed after the max submit attempts on retryable error
     $generation->refresh();
 
     expect($generation->status)->toBe(GenerationStatus::Failed)
-        ->and($generation->error_code)->toBe('rate_limit_exceeded')
-        ->and($generation->error_message)->toBe(GenerationFailureMessage::forCode('rate_limit_exceeded'))
+        ->and($generation->error_code)->toBe('overloaded')
+        ->and($generation->error_message)->toBe(GenerationFailureMessage::forCode('overloaded'))
         ->and(LedgerEntry::query()->count())->toBe(0)
         ->and($client->created)->toBeEmpty();
 
@@ -331,23 +374,23 @@ it('recovers an unconfirmed generation through the idempotent replay', function 
         ->and($generation->status)->toBe(GenerationStatus::Queued);
 });
 
-it('keeps an unconfirmed generation on a rate limit but fails a confirmed one', function () {
+it('keeps an unconfirmed generation on an overload but fails a confirmed one', function () {
     config(['services.pixelforge.max_submit_attempts' => 1]);
 
     $client = bindFakePixelforgeClient();
     $unconfirmed = Generation::factory()->create(['submit_unconfirmed' => true]);
     $confirmed = Generation::factory()->create();
 
-    $client->failure = PixelforgeException::fromProvider(429, 'rate_limit_exceeded', 'Slow.', null, 3);
+    $client->failure = PixelforgeException::fromProvider(503, 'overloaded', 'Slow.', null, 3);
     runSubmitJob($unconfirmed, fakeQueue: true);
 
-    $client->failure = PixelforgeException::fromProvider(429, 'rate_limit_exceeded', 'Slow.', null, 3);
+    $client->failure = PixelforgeException::fromProvider(503, 'overloaded', 'Slow.', null, 3);
     runSubmitJob($confirmed, fakeQueue: true);
 
     expect($unconfirmed->refresh()->status)->toBe(GenerationStatus::Queued)
         ->and($unconfirmed->submit_unconfirmed)->toBeTrue()
         ->and($confirmed->refresh()->status)->toBe(GenerationStatus::Failed)
-        ->and($confirmed->error_message)->toBe(GenerationFailureMessage::forCode('rate_limit_exceeded'));
+        ->and($confirmed->error_message)->toBe(GenerationFailureMessage::forCode('overloaded'));
 });
 
 it('fails an unconfirmed generation at once when the provider proves the key unknown', function (int $status, string $code) {

@@ -17,7 +17,7 @@ Precondition: specs 000 to 009 are `implemented`. The tasks do not edit `docs/`,
       the two new reconciliation steps, the `AdminReport` stuck list with its DTO, controller prop and
       "Needs attention" section, and the T2 tests. Tech spec: Model and contracts (Migration B, Config,
       `AdminReport`), Behaviour in code (T2), Tests (T2). Reviewer: Opus.
-- [ ] **T3. Per-minute waits without attempts, atomic budget, no duplicate submit jobs.** The limiter
+- [x] **T3. Per-minute waits without attempts, atomic budget, no duplicate submit jobs.** The limiter
       hits before it checks, `SubmitGeneration` treats `429 rate_limit_exceeded` like concurrency, every
       wait path touches `updated_at`, and the T3 tests. Tech spec: Behaviour in code (T3), Tests (T3).
       Reviewer: Opus.

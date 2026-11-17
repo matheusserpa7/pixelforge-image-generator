@@ -56,11 +56,7 @@ final class PixelforgeRequestLimiter
         }
 
         try {
-            if (RateLimiter::tooManyAttempts(self::RATE_KEY, self::requestsPerMinute())) {
-                throw new PixelforgeBusy(max(1, RateLimiter::availableIn(self::RATE_KEY)));
-            }
-
-            RateLimiter::hit(self::RATE_KEY, 60);
+            $this->spendBudget();
 
             return $callback();
         } finally {
@@ -79,13 +75,22 @@ final class PixelforgeRequestLimiter
      */
     public function attempt(callable $callback): mixed
     {
-        if (RateLimiter::tooManyAttempts(self::RATE_KEY, self::requestsPerMinute())) {
-            throw new PixelforgeBusy(max(1, RateLimiter::availableIn(self::RATE_KEY)));
-        }
-
-        RateLimiter::hit(self::RATE_KEY, 60);
+        $this->spendBudget();
 
         return $callback();
+    }
+
+    /**
+     * Hit first, then check: the increment is atomic, so concurrent workers
+     * cannot all pass a stale "under budget" read.
+     */
+    private function spendBudget(): void
+    {
+        $hits = RateLimiter::hit(self::RATE_KEY, 60);
+
+        if ($hits > self::requestsPerMinute()) {
+            throw new PixelforgeBusy(max(1, RateLimiter::availableIn(self::RATE_KEY)));
+        }
     }
 
     private function acquireConcurrencyLock(): ?Lock
