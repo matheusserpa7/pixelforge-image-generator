@@ -109,7 +109,8 @@ return [
     |
     */
 
-    'cache' => env('PULSE_CACHE_DRIVER'),
+    // A null store (config/cache.php): cards cannot read objects back from the shared cache.
+    'cache' => env('PULSE_CACHE_DRIVER', 'pulse'),
 
     /*
     |--------------------------------------------------------------------------

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
+use Laravel\Pulse\Livewire;
+use Livewire\Livewire as LivewireTest;
 
 dataset('dashboards', ['/horizon', '/pulse']);
 
@@ -38,3 +40,20 @@ it('shares the dashboard links with admins only, at their configured paths', fun
         ->get(route('generations.index'))
         ->assertInertia(fn (Assert $page) => $page->where('auth.dashboards', null));
 });
+
+it('renders every Pulse card twice in a row, as its poll does', function (string $card) {
+    $this->actingAs(User::factory()->admin()->create());
+
+    LivewireTest::withoutLazyLoading()->test($card)->assertOk();
+    LivewireTest::withoutLazyLoading()->test($card)->assertOk();
+})->with([
+    Livewire\Servers::class,
+    Livewire\Usage::class,
+    Livewire\Queues::class,
+    Livewire\Cache::class,
+    Livewire\SlowQueries::class,
+    Livewire\Exceptions::class,
+    Livewire\SlowRequests::class,
+    Livewire\SlowJobs::class,
+    Livewire\SlowOutgoingRequests::class,
+]);

@@ -88,6 +88,12 @@ return [
             'lock_connection' => env('REDIS_CACHE_LOCK_CONNECTION', 'default'),
         ],
 
+        // Pulse caches collections of stdClass and Carbon dates, which `serializable_classes`
+        // refuses to read back. Its admin-only cards recompute on every poll instead.
+        'pulse' => [
+            'driver' => 'null',
+        ],
+
         'dynamodb' => [
             'driver' => 'dynamodb',
             'key' => env('AWS_ACCESS_KEY_ID'),
