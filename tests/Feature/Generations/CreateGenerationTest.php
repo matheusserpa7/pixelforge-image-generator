@@ -100,7 +100,7 @@ it('stores the worked example estimate in nano-usd', function () {
     ];
 
     $response = $this->post(route('generations.store'), $payload)
-        ->assertRedirect(route('dashboard'));
+        ->assertRedirect(route('generations.index'));
 
     $generation = Generation::query()->sole();
 
@@ -126,7 +126,7 @@ it('defaults omitted size and quality', function () {
     seedPricingCache();
 
     $this->post(route('generations.store'), ['prompt' => 'A cat wearing a hat.'])
-        ->assertRedirect(route('dashboard'));
+        ->assertRedirect(route('generations.index'));
 
     $generation = Generation::query()->sole();
 
@@ -190,7 +190,7 @@ it('dispatches a submit job after commit', function () {
     seedPricingCache();
 
     $this->post(route('generations.store'), validGenerationPayload())
-        ->assertRedirect(route('dashboard'));
+        ->assertRedirect(route('generations.index'));
 
     $generation = Generation::query()->sole();
 
@@ -232,4 +232,30 @@ it('nulls user_id on the generation when the user is deleted', function () {
     expect($generation)->toBeInstanceOf(Generation::class)
         ->and($generation->user_id)->toBeNull()
         ->and(Gate::forUser($user)->denies('view', $generation))->toBeTrue();
+});
+
+it('flashes a toast after a successful submit', function () {
+    $this->actingAs(User::factory()->create());
+    seedPricingCache();
+
+    $this->post(route('generations.store'), validGenerationPayload())
+        ->assertRedirect(route('generations.index'))
+        ->assertInertiaFlash('toast', ['type' => 'success', 'message' => 'Generation queued.']);
+});
+
+it('turns the eleventh submit in a minute into a readable error and stores nothing', function () {
+    $this->actingAs(User::factory()->create());
+    seedPricingCache();
+
+    foreach (range(1, 10) as $_) {
+        $this->post(route('generations.store'), validGenerationPayload())->assertRedirect(route('generations.index'));
+    }
+
+    $this->from(route('generations.index'))
+        ->post(route('generations.store'), validGenerationPayload())
+        ->assertRedirect(route('generations.index'))
+        ->assertSessionHasErrors(['generation']);
+
+    expect(session('errors')->first('generation'))->toMatch('/^You are submitting too fast\. Try again in \d+ seconds\.$/')
+        ->and(Generation::query()->count())->toBe(10);
 });

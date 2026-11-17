@@ -7,7 +7,7 @@ Status: **approved** · 2026-11-16 · Tech spec: [tech-spec.md](tech-spec.md)
       `ApplyGenerationSnapshot::applySucceeded`, `GenerationImageController` and the
       `generations.image` route, with their tests. Tech spec: Migration, Config,
       `DownloadGenerationImage` job, Dispatch, Image route, Tests (T1 rows). Reviewer: Opus.
-- [ ] **T2. Page data, estimate endpoint and submit flow.** `MoneyView`, `GenerationResource`,
+- [x] **T2. Page data, estimate endpoint and submit flow.** `MoneyView`, `GenerationResource`,
       `EstimateGeneration`, `EstimateGenerationRequest`, `GenerationController@index` and `@estimate`,
       the routes table (throttles, `dashboard` redirect), the `generation-estimates` limiter, Fortify
       `home`, the store toast and redirect, the throttled-submit rendering, a minimal

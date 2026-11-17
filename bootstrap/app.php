@@ -10,6 +10,7 @@ use App\Http\Middleware\SecurityHeaders;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -55,6 +56,19 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withExceptions(function (Exceptions $exceptions): void {
         // Reports to Sentry only when SENTRY_LARAVEL_DSN is set; a no-op otherwise.
         Integration::handles($exceptions);
+
+        $exceptions->render(function (ThrottleRequestsException $exception, Request $request) {
+            if ($request->routeIs('generations.store') && ! $request->expectsJson()) {
+                $retryAfter = $exception->getHeaders()['Retry-After'] ?? null;
+                $seconds = is_numeric($retryAfter) ? (int) $retryAfter : 60;
+
+                return back()->withErrors([
+                    'generation' => "You are submitting too fast. Try again in {$seconds} seconds.",
+                ]);
+            }
+
+            return null;
+        });
 
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),

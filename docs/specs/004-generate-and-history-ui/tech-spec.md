@@ -27,7 +27,8 @@ every 3 s, only the `generations` prop, only while a listed generation is not fi
 - `Generation::scopeForUser`, `GenerationPolicy::view` / `viewAny` exist.
 - Front end: Vue 3 + Inertia v3 (`@inertiajs/vue3` exports `useForm`, `useHttp`, `usePoll`), Wayfinder
   route helpers in `resources/js/routes` and `resources/js/actions` (regenerate with
-  `php artisan wayfinder:generate` inside the `app` container after adding routes), shadcn-vue
+  `php artisan wayfinder:generate --with-form` inside the `app` container after adding routes; without
+  `--with-form` the `.form` variants disappear and `vue-tsc` fails; both folders are gitignored), shadcn-vue
   components in `resources/js/components/ui`, toasts through `Inertia::flash('toast', [...])` and
   `resources/js/lib/flashToast.ts`. There is no JS unit-test runner; `vue-tsc`, ESLint and Prettier are
   the front-end bar.
@@ -150,7 +151,7 @@ Register `generation-estimates` in `AppServiceProvider`: 60 per minute per user 
 `index(Request $request, #[CurrentUser] User $user)`: `Gate::authorize('viewAny', Generation::class)`,
 then `Generation::query()->forUser($user)->orderByDesc('created_at')->orderByDesc('id')->paginate(20)`,
 render `generations/Index` with `generations` = `GenerationResource::collection($paginator)` and
-`options` = the size and quality choices (`[{value, label}]`, labels `Square (1024×1024)`, `Landscape
+`options` = `{ sizes: [{value, label}], qualities: [{value, label}] }` (labels `Square (1024×1024)`, `Landscape
 (1536×1024)`, `Portrait (1024×1536)`, `Low`, `Medium`, `High`) and `maxReferenceImages` = 4,
 `maxPromptLength` = 4000.
 
@@ -225,7 +226,7 @@ it otherwise. The form state is not touched by polling.
 
 **Navigation**: `AppSidebar.vue` main nav has one item "Generations" → `generations.index` (an image
 icon from `@lucide/vue`); remove the "Repository" and "Documentation" footer links; logo link goes to
-`generations.index`. Delete `pages/Dashboard.vue` and `components/PlaceholderPattern.vue` if nothing
+`generations.index`. `AppHeader.vue` gets the same nav item and logo link. Delete `pages/Dashboard.vue` and `components/PlaceholderPattern.vue` if nothing
 else imports it.
 
 UI copy is English.
