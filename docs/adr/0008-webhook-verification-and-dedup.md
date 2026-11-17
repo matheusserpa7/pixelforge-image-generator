@@ -25,3 +25,5 @@ non-2xx answer or after 10 seconds.
   `Pixelforge-Event-Id` header. A signed body without a readable `id` or `type` gets `400`; a bad or
   stale signature gets `401`. Each stored event records what processing did with it (`outcome`).
   Spec: [003-webhooks-and-reconciliation](../specs/003-webhooks-and-reconciliation/).
+- Stored payloads are decoded with `DecimalJson`, like API responses, so numbers (token counts) reach
+  the parser as strings and never as floats. Spec: [009-webhook-numeric-payload](../specs/009-webhook-numeric-payload/).

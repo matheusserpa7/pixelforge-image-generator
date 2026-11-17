@@ -9,12 +9,13 @@ This is a take-home assessment for PromptEdit. The brief is summarised in
 [docs/product/overview.md](docs/product/overview.md) and the API in
 [docs/product/pixelforge-api.md](docs/product/pixelforge-api.md).
 
-> **Status:** specs 000 to 004 and 008 done. A signed-in user sees the estimate and maximum before
+> **Status:** specs 000 to 005, 008 and 009 done, deployed at
+> **https://pixelforge.matheusserpa.online**. A signed-in user sees the estimate and maximum before
 > submitting, and follows each generation live in their history with its actual charge and image. A
 > job sends it to Pixelforge under the provider's limits, and a submission the provider may have
 > accepted is never failed locally. Signed webhooks, deduplicated and applied in any order, plus a
 > polling safety net, bring it to its final state, a success is charged once, and its image is copied
-> to our storage. Deployment is next, see the [roadmap](docs/roadmap.md).
+> to our storage. The admin report is next, see the [roadmap](docs/roadmap.md).
 
 ## Run it
 
@@ -50,9 +51,11 @@ the tunnel: `docker compose --profile tunnel up`. The public URL is in `docker c
 | `make fix`     | Fix style issues                                       |
 | `make shell`   | Shell in the app container                             |
 | `make fresh`   | Recreate the database with seed data                   |
+| `make deploy`  | Ship `main` to the production VPS (`DEPLOY_HOST=...`)  |
 
-Production uses the same image: `docker compose -f compose.prod.yaml up -d --build` with a real
-`.env` (see `.env.example`).
+Production runs the same image on a VPS, behind its shared edge proxy, at
+https://pixelforge.matheusserpa.online. Ship a version with `make deploy DEPLOY_HOST=<ssh destination>`;
+first install, edge proxy and operations are in [docs/deployment.md](docs/deployment.md).
 
 ## Architecture
 
@@ -88,6 +91,7 @@ app/Jobs, app/Policies, app/Http/Controllers
 | [Redis limiter and Retry-After backoff](docs/adr/0012-provider-limits.md)                      | Respects 3 concurrent and 60 requests per minute.                |
 | [Inertia polling, no WebSockets](docs/adr/0015-live-status-via-inertia-polling.md)             | Live status without extra infrastructure.                        |
 | [FrankenPHP image for dev and prod](docs/adr/0016-docker-frankenphp.md)                        | One command locally, the same image on the server.               |
+| [Single VPS behind the edge proxy](docs/adr/0022-single-vps-deployment-behind-edge-proxy.md)    | One-command deploys next to other sites, TLS by the shared proxy. |
 
 All decisions: [docs/adr](docs/adr/README.md).
 

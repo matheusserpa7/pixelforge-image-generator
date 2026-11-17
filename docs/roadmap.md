@@ -10,7 +10,7 @@ Specs in delivery order. Each one gets `prd.md`, `tech-spec.md` and `tasks.md` b
 | 003 | `003-webhooks-and-reconciliation` | Verify, deduplicate and process webhooks in any order, with polling as a safety net.      | Done    |
 | 008 | `008-safe-submit-failures`        | Never fail locally a generation the provider may have; bursts wait for a concurrency slot. | Done    |
 | 004 | `004-generate-and-history-ui`     | Generate page with up-front estimate and history with live status, costs and images.     | Done    |
-| 005 | `005-deployment`                  | Deploy the production image to a public VPS with HTTPS and its own Pixelforge key.         | Next    |
-| 009 | `009-webhook-numeric-payload`     | Apply real `succeeded` webhooks (numeric token counts) instead of waiting for polling.    | Planned |
-| 006 | `006-admin-report` (stretch)      | Daily and per-user charged, provider cost and profit, reconciled with `GET /v1/usage`.     | Planned |
+| 005 | `005-deployment`                  | Deploy the production image to a public VPS with HTTPS and its own Pixelforge key.         | Done    |
+| 009 | `009-webhook-numeric-payload`     | Apply real `succeeded` webhooks (numeric token counts) instead of waiting for polling.    | Done    |
+| 006 | `006-admin-report` (stretch)      | Daily and per-user charged, provider cost and profit, reconciled with `GET /v1/usage`.     | Next    |
 | 007 | `007-credit-balances` (stretch)   | Credit balances, fake "Buy credits" and blocking generations the user cannot afford.      | Planned |

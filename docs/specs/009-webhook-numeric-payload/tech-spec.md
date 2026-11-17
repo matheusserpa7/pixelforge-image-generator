@@ -1,6 +1,6 @@
 # 009 Webhook numeric payload: tech spec
 
-Status: **approved** · 2026-11-17 · PRD: [prd.md](prd.md)
+Status: **implemented** · 2026-11-17 · PRD: [prd.md](prd.md)
 
 Fixes the webhook processing path so it decodes payloads exactly like the HTTP client does. Follows
 ADR 0003 (no floats), ADR 0008 (webhooks), ADR 0009 (monotonic status) and ADR 0010 (charge once);

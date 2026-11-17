@@ -1,6 +1,6 @@
 # 009 Webhook numeric payload: PRD
 
-Status: **approved** · 2026-11-17
+Status: **implemented** · 2026-11-17
 
 ## Problem
 

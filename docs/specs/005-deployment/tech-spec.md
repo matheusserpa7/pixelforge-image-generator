@@ -1,6 +1,6 @@
 # 005 Deployment: tech spec
 
-Status: **approved** · 2026-11-17 (revised: shared edge proxy) · PRD: [prd.md](prd.md)
+Status: **implemented** · 2026-11-17 (revised: shared edge proxy) · PRD: [prd.md](prd.md)
 
 Deploys the existing `prod` image (ADR 0016) to the maintainer's existing VPS at
 `https://pixelforge.matheusserpa.online`. No application behaviour changes for users; the changes are

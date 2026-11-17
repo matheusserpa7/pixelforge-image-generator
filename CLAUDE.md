@@ -51,6 +51,9 @@ The step-by-step procedure is the `sdd` skill (`.claude/skills/sdd/SKILL.md`).
 11. Images are downloaded to a Laravel disk (local now, S3-compatible). ADR 0013.
 12. Users only see their own generations, enforced by a Policy. ADR 0014.
 13. Live status through Inertia polling, no WebSockets. ADR 0015.
+14. Production runs on one VPS behind its shared edge proxy, which terminates TLS. The web service is
+    `pixelforge-app` on the `edge` network (never `app`), publishes no host port, and ships with
+    `make deploy`. ADR 0022.
 
 ## Code conventions
 
@@ -80,5 +83,6 @@ Everything runs inside Docker; the host only needs Docker and `make`.
 | `make fix`     | Pint, ESLint `--fix`, Prettier `--write`                  |
 | `make shell`   | Shell inside the `app` container                          |
 | `make fresh`   | `migrate:fresh --seed`                                    |
+| `make deploy`  | Ship `main` to production (`DEPLOY_HOST=...`, see `docs/deployment.md`) |
 
 Before declaring any task done, run `make lint analyse test` and show the real output.

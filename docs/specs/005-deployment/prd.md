@@ -1,6 +1,6 @@
 # 005 Deployment: PRD
 
-Status: **approved** · 2026-11-17 (revised: shared edge proxy)
+Status: **implemented** · 2026-11-17 (revised: shared edge proxy)
 
 ## Problem
 
