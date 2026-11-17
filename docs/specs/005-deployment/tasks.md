@@ -2,7 +2,7 @@
 
 Status: **approved** · 2026-11-17 · Tech spec: [tech-spec.md](tech-spec.md)
 
-- [ ] **T1. Production stack with HTTPS and trusted proxies.** `config/trustedproxy.php` and the
+- [x] **T1. Production stack with HTTPS and trusted proxies.** `config/trustedproxy.php` and the
       `bootstrap/app.php` change, the `.env.example` lines, the `Dockerfile` `setcap`, the
       `compose.prod.yaml` changes (domain, ports, Caddy volumes, start order, log rotation,
       `TRUSTED_PROXIES: ''`), the trusted-proxy feature test and the smoke checks. Tech spec: Decisions

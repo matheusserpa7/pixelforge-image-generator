@@ -31,15 +31,7 @@ return Application::configure(basePath: dirname(__DIR__))
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        // The app runs behind Docker networking and, in production, a reverse proxy
-        // on the same host. Only private addresses may set X-Forwarded-* headers.
-        $middleware->trustProxies(at: [
-            '127.0.0.1',
-            '10.0.0.0/8',
-            '172.16.0.0/12',
-            '192.168.0.0/16',
-        ]);
-
+        // Trusted proxies come from config('trustedproxy.proxies') (env TRUSTED_PROXIES).
         $middleware->append([
             AssignRequestContext::class,
             SecurityHeaders::class,

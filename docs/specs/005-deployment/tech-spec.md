@@ -139,9 +139,10 @@ After the Redis/session block:
 
 ### `Dockerfile`
 
-In `base`, after `install-php-extensions`: install `libcap2-bin` and run
-`setcap CAP_NET_BIND_SERVICE=+eip /usr/local/bin/frankenphp` (check the binary path in the image).
-Clean the apt lists. Nothing else changes; dev keeps `:8080`.
+In `base`, after `install-php-extensions`: run
+`setcap CAP_NET_BIND_SERVICE=+eip /usr/local/bin/frankenphp`. The base image already ships `setcap`
+and sets `cap_net_bind_service=ep` on that binary; the explicit call keeps the guarantee if the base
+image ever drops it, so no `libcap2-bin` install is needed. Nothing else changes; dev keeps `:8080`.
 
 ### `scripts/deploy.sh` (new) and `make deploy`
 

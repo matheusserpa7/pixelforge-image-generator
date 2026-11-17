@@ -26,6 +26,7 @@ ENV SERVER_NAME=:8080 \
 WORKDIR /app
 
 RUN install-php-extensions pdo_mysql redis intl pcntl zip bcmath opcache \
+    && setcap CAP_NET_BIND_SERVICE=+eip /usr/local/bin/frankenphp \
     && useradd --uid 1000 --create-home --shell /bin/bash app \
     && mkdir -p /config/caddy /data/caddy \
     && chown -R app:app /app /config /data
