@@ -11,6 +11,6 @@ Status: **approved** · 2026-11-16 · Tech spec: [tech-spec.md](tech-spec.md)
       code (Receive). Reviewer: Opus.
 - [x] **T2. Process webhook events.** `ProcessWebhookEvent::handle` and
       `WebhookEventOutcome::fromSnapshot`. Tech spec: Behaviour in code (Process). Reviewer: Opus.
-- [ ] **T3. Reconciliation.** `reconcile_after_seconds` config and `.env.example` line,
+- [x] **T3. Reconciliation.** `reconcile_after_seconds` config and `.env.example` line,
       `ReconcileGenerations`, `ReconcileGenerationsCommand`, the schedule entry, and `PollGeneration`.
       Tech spec: Config, Behaviour in code (Reconcile). Reviewer: Opus.

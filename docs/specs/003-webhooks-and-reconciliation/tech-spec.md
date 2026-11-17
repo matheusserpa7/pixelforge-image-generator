@@ -171,8 +171,9 @@ snapshot again, which is a no-op by design.
 
 ### Reconcile (task T3)
 
-`ReconcileGenerations::handle(): void` (action), called by the command `pixelforge:reconcile`
-(`App\Console\Commands\ReconcileGenerationsCommand`, prints nothing or one line with the two counts).
+`ReconcileGenerations::handle(): array` (action) returns `['polled' => int, 'resubmitted' => int]`,
+called by the command `pixelforge:reconcile` (`App\Console\Commands\ReconcileGenerationsCommand`,
+prints nothing or one line with the two counts).
 Schedule it in `routes/console.php`:
 `Schedule::command('pixelforge:reconcile')->everyMinute()->withoutOverlapping()`.
 

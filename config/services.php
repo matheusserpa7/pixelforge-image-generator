@@ -49,6 +49,8 @@ return [
         'requests_per_minute' => env('PIXELFORGE_REQUESTS_PER_MINUTE', 60),
         'max_submit_attempts' => env('PIXELFORGE_MAX_SUBMIT_ATTEMPTS', 5),
         'concurrency_retry_seconds' => env('PIXELFORGE_CONCURRENCY_RETRY_SECONDS', 5),
+        // Seconds without change before a queued or processing generation is polled (docs/adr/0011).
+        'reconcile_after_seconds' => env('PIXELFORGE_RECONCILE_AFTER_SECONDS', 120),
     ],
 
 ];
