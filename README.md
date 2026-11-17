@@ -9,14 +9,16 @@ This is a take-home assessment for PromptEdit. The brief is summarised in
 [docs/product/overview.md](docs/product/overview.md) and the API in
 [docs/product/pixelforge-api.md](docs/product/pixelforge-api.md).
 
-> **Status:** specs 000 to 006, 008 and 009 done, deployed at
+> **Status:** all specs (000 to 009) done, deployed at
 > **https://pixelforge.matheusserpa.online**. A signed-in user sees the estimate and maximum before
 > submitting, and follows each generation live in their history with its actual charge and image. A
 > job sends it to Pixelforge under the provider's limits, and a submission the provider may have
 > accepted is never failed locally. Signed webhooks, deduplicated and applied in any order, plus a
 > polling safety net, bring it to its final state, a success is charged once, and its image is copied
 > to our storage. Admins get a report of charged, provider cost and profit per day and per user,
-> reconciled to the nano with `GET /v1/usage`. Credit balances are next, see the [roadmap](docs/roadmap.md).
+> reconciled to the nano with `GET /v1/usage`. Each user has a credit balance topped up by a fake
+> "Buy credits" button, and a generation is accepted only when its maximum charge fits the available
+> credit. See the [roadmap](docs/roadmap.md).
 
 ## Run it
 
@@ -95,6 +97,7 @@ app/Jobs, app/Policies, app/Http/Controllers
 | [FrankenPHP image for dev and prod](docs/adr/0016-docker-frankenphp.md)                        | One command locally, the same image on the server.               |
 | [Single VPS behind the edge proxy](docs/adr/0022-single-vps-deployment-behind-edge-proxy.md)    | One-command deploys next to other sites, TLS by the shared proxy. |
 | [Report by provider completion day](docs/adr/0023-admin-report-by-provider-completion-day.md) | Daily provider cost matches `GET /v1/usage` to the nano.         |
+| [Derived balances, holds at the maximum](docs/adr/0024-derived-credit-balances-with-holds.md) | Users never spend credit they do not have; no counter to drift.  |
 
 All decisions: [docs/adr](docs/adr/README.md).
 

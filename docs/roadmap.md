@@ -13,4 +13,4 @@ Specs in delivery order. Each one gets `prd.md`, `tech-spec.md` and `tasks.md` b
 | 005 | `005-deployment`                  | Deploy the production image to a public VPS with HTTPS and its own Pixelforge key.         | Done    |
 | 009 | `009-webhook-numeric-payload`     | Apply real `succeeded` webhooks (numeric token counts) instead of waiting for polling.    | Done    |
 | 006 | `006-admin-report` (stretch)      | Daily and per-user charged, provider cost and profit, reconciled with `GET /v1/usage`.     | Done    |
-| 007 | `007-credit-balances` (stretch)   | Credit balances, fake "Buy credits" and blocking generations the user cannot afford.      | Next    |
+| 007 | `007-credit-balances` (stretch)   | Credit balances, fake "Buy credits" and blocking generations the user cannot afford.      | Done    |

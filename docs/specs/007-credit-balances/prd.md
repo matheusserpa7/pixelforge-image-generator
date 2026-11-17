@@ -1,6 +1,6 @@
 # 007 Credit balances: PRD
 
-Status: **approved** · 2026-11-17
+Status: **implemented** · 2026-11-17
 
 ## Problem
 

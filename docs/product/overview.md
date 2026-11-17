@@ -66,6 +66,10 @@ key matches the deployed app exactly.
 | Estimate            | Up-front price from pricing cached for `billing.pricing_cache_seconds` (default 3600): expected value and maximum. |
 | Nano-USD (nanos)    | Integer money unit, 1 USD = 10⁹ nanos. Matches the 9 decimals of `GET /v1/usage`.         |
 | Ledger entry        | Append-only record of a charge; at most one per generation.                               |
+| Credit purchase     | Append-only record of credit added to a user (fake "Buy credits" pack or opening balance). |
+| Balance             | Credit purchases minus ledger charges. Derived, never stored.                             |
+| Held credit         | Sum of the maximum charge of the user's queued and processing generations.               |
+| Available credit    | Balance minus held credit. A generation is accepted only if its maximum fits in it.       |
 | Webhook event       | A signed POST from Pixelforge (`evt_…`), stored once and processed in a job.              |
 | Reconciliation      | Scheduled polling of generations stuck too long, a safety net for lost webhooks.          |
 | Idempotency key     | Our generation ULID, sent on `POST /v1/generations` so retries never create duplicates.   |

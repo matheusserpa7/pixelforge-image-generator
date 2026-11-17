@@ -57,6 +57,10 @@ The step-by-step procedure is the `sdd` skill (`.claude/skills/sdd/SKILL.md`).
 15. The admin report buckets ledger money by the UTC day of `provider_completed_at` and compares
     provider cost with `GET /v1/usage` exactly; usage is cached 60 s and spends the shared minute
     budget. ADR 0023.
+16. Credit balances are derived, never stored: purchases (append-only `credit_purchases`) minus
+    ledger charges. Each queued or processing generation holds its maximum charge; a generation is
+    accepted only if its maximum fits the available credit, checked under a lock on the user row.
+    ADR 0024.
 
 ## Code conventions
 

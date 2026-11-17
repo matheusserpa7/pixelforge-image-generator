@@ -27,3 +27,4 @@ One short record per relevant decision: context, decision, consequences.
 | 0021 | [Fail locally only when the provider cannot have it](0021-local-failure-only-when-provider-cannot-have-it.md) |
 | 0022 | [Single-VPS deployment behind the shared edge proxy](0022-single-vps-deployment-behind-edge-proxy.md) |
 | 0023 | [Admin report attributes money to the provider completion day](0023-admin-report-by-provider-completion-day.md) |
+| 0024 | [Credit balances are derived, with holds at the maximum charge](0024-derived-credit-balances-with-holds.md) |
