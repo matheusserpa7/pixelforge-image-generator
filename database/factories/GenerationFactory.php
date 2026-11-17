@@ -34,6 +34,8 @@ final class GenerationFactory extends Factory
             'maximum_provider_cost_nanos' => 0,
             'estimated_charge_nanos' => 0,
             'maximum_charge_nanos' => 0,
+            'markup_percent' => '25',
+            'maximum_tokens' => null,
         ];
     }
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Actions;
 
+use App\Data\GenerationRates;
 use App\Data\PixelforgeGeneration;
 use App\Data\TokenUsage;
 use App\Enums\GenerationStatus;
@@ -70,6 +71,7 @@ final class ApplyGenerationSnapshot
 
         if ($generation->rates === null) {
             $generation->rates = $snapshot->rates->toStoredArray();
+            $this->raiseHold($generation, $snapshot->rates);
             $changed = true;
         }
 
@@ -99,11 +101,38 @@ final class ApplyGenerationSnapshot
     {
         $generation->status = GenerationStatus::Processing;
         $generation->provider_id = $snapshot->id;
+
+        if ($generation->rates === null) {
+            $this->raiseHold($generation, $snapshot->rates);
+        }
+
         $generation->rates = $snapshot->rates->toStoredArray();
         $this->applyProviderTimestamps($generation, $snapshot);
         $generation->save();
 
         return SnapshotOutcome::Applied;
+    }
+
+    /**
+     * Once the provider's own rates are known, the hold rises to the maximum charge at those rates when
+     * that is higher than the quoted maximum. It never goes down. The caller saves.
+     */
+    private function raiseHold(Generation $generation, GenerationRates $rates): void
+    {
+        if ($generation->maximum_tokens === null) {
+            return;
+        }
+
+        $maximum = ActualCost::calculate(
+            TokenUsage::fromStoredArray($generation->maximum_tokens),
+            $rates,
+            $generation->markup_percent,
+        );
+
+        if ($maximum->charge->nanos > $generation->maximum_charge_nanos) {
+            $generation->maximum_provider_cost_nanos = $maximum->providerCost->nanos;
+            $generation->maximum_charge_nanos = $maximum->charge->nanos;
+        }
     }
 
     private function applyFailed(Generation $generation, PixelforgeGeneration $snapshot): SnapshotOutcome
@@ -129,7 +158,7 @@ final class ApplyGenerationSnapshot
             throw new LogicException('Succeeded snapshot without usage should not reach applySucceeded.');
         }
 
-        $markupPercent = config()->string('billing.markup_percent');
+        $markupPercent = $generation->markup_percent;
 
         $cost = ActualCost::calculate(
             $usage,

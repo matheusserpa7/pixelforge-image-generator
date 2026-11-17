@@ -5,7 +5,7 @@ Status: **approved** · 2026-11-17 · Tech spec: [tech-spec.md](tech-spec.md)
 Precondition: specs 000 to 009 are `implemented`. The tasks do not edit `docs/`, `README.md` or
 `CLAUDE.md`. The main session closes the documents after T5 ("Documents at close").
 
-- [ ] **T1. Frozen markup and honest holds.** Migration A with its backfill, model fillable, casts and
+- [x] **T1. Frozen markup and honest holds.** Migration A with its backfill, model fillable, casts and
       properties, factory defaults, `CostEstimate::maximumTokens`, `CreateGeneration` storing the markup
       and maximum tokens, `ApplyGenerationSnapshot` charging at the generation's markup and `raiseHold`
       on the first rates, pricing cache default 300 (config and `.env.example`), and the T1 tests plus

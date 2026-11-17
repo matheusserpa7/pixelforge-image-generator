@@ -3,19 +3,25 @@
 declare(strict_types=1);
 
 use App\Actions\ApplyGenerationSnapshot;
+use App\Actions\CreateGeneration;
 use App\Actions\FailGeneration;
 use App\Actions\GetCachedPricing;
+use App\Actions\GetCreditBalance;
 use App\Data\GenerationRates;
 use App\Data\PixelforgeGeneration;
 use App\Data\PixelforgeGenerationError;
 use App\Data\TokenUsage;
 use App\Enums\GenerationStatus;
+use App\Enums\ImageQuality;
+use App\Enums\ImageSize;
 use App\Enums\SnapshotOutcome;
 use App\Jobs\DownloadGenerationImage;
 use App\Models\Generation;
 use App\Models\LedgerEntry;
 use App\Models\User;
+use App\Services\Billing\InsufficientCredits;
 use App\Services\Pixelforge\GenerationFailureMessage;
+use App\Services\Pixelforge\SamplePricing;
 use App\Support\Money\Money;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\QueryException;
@@ -152,8 +158,7 @@ it('charges on succeeded with usage using half-up markup', function () {
 });
 
 it('leaves charge equal to provider cost when markup is zero', function () {
-    config(['billing.markup_percent' => '0']);
-    $generation = Generation::factory()->create(['status' => GenerationStatus::Queued]);
+    $generation = Generation::factory()->create(['status' => GenerationStatus::Queued, 'markup_percent' => '0']);
     $apply = app(ApplyGenerationSnapshot::class);
     $rates = new GenerationRates(
         Money::ofNanos(1),
@@ -501,4 +506,172 @@ it('dispatches no image download for a failed generation', function () {
     app(ApplyGenerationSnapshot::class)->handle($generation->id, pixelforgeSnapshot($generation, GenerationStatus::Failed));
 
     Queue::assertNotPushed(DownloadGenerationImage::class);
+});
+
+it('charges at the markup frozen on the generation, not the current configuration', function () {
+    $generation = Generation::factory()->create(['status' => GenerationStatus::Queued, 'markup_percent' => '25']);
+    config(['billing.markup_percent' => '40']);
+
+    app(ApplyGenerationSnapshot::class)->handle(
+        $generation->id,
+        pixelforgeSnapshot($generation, GenerationStatus::Succeeded, [
+            'rates' => new GenerationRates(Money::ofNanos(1), Money::zero(), Money::zero(), Money::zero()),
+            'usage' => new TokenUsage(inputText: 1000, inputImage: 0, output: 0, reasoning: 0),
+        ]),
+    );
+
+    $ledger = LedgerEntry::query()->where('generation_id', $generation->id)->sole();
+
+    expect($ledger->provider_cost_nanos)->toBe(1000)
+        ->and($ledger->charge_nanos)->toBe(1250)
+        ->and($ledger->markup_percent)->toBe('25');
+});
+
+it('rounds the frozen markup half-up', function (int $tokens, int $expectedCharge) {
+    $generation = Generation::factory()->create(['status' => GenerationStatus::Queued, 'markup_percent' => '12.5']);
+
+    app(ApplyGenerationSnapshot::class)->handle(
+        $generation->id,
+        pixelforgeSnapshot($generation, GenerationStatus::Succeeded, [
+            'rates' => new GenerationRates(Money::ofNanos(1), Money::zero(), Money::zero(), Money::zero()),
+            'usage' => new TokenUsage(inputText: $tokens, inputImage: 0, output: 0, reasoning: 0),
+        ]),
+    );
+
+    expect($generation->refresh()->provider_cost_nanos)->toBe($tokens)
+        ->and($generation->charge_nanos)->toBe($expectedCharge);
+})->with([
+    '3.375 rounds down' => [3, 3],
+    '4.5 rounds up' => [4, 5],
+]);
+
+/**
+ * Maximum tokens are 1000 text tokens: at 5 000 nanos per token and 25% markup the quoted hold is 6 250 000.
+ *
+ * @param  array<string, mixed>  $overrides
+ */
+function heldGeneration(array $overrides = []): Generation
+{
+    return Generation::factory()->create(array_merge([
+        'status' => GenerationStatus::Queued,
+        'markup_percent' => '25',
+        'maximum_tokens' => (new TokenUsage(1000, 0, 0, 0))->toStoredArray(),
+        'maximum_provider_cost_nanos' => 5_000_000,
+        'maximum_charge_nanos' => 6_250_000,
+    ], $overrides));
+}
+
+function textRates(int $nanosPerToken): GenerationRates
+{
+    return new GenerationRates(Money::ofNanos($nanosPerToken), Money::zero(), Money::zero(), Money::zero());
+}
+
+it('raises the hold to the maximum at the generation rates when they are higher', function () {
+    $user = User::factory()->withCredit('0.02')->create();
+    $generation = heldGeneration(['user_id' => $user->id]);
+
+    expect(app(GetCreditBalance::class)->handle($user)->available()->nanos)->toBe(20_000_000 - 6_250_000);
+
+    app(ApplyGenerationSnapshot::class)->handle(
+        $generation->id,
+        pixelforgeSnapshot($generation, GenerationStatus::Processing, ['rates' => textRates(10_000)]),
+    );
+
+    $generation->refresh();
+    $balance = app(GetCreditBalance::class)->handle($user);
+
+    expect($generation->maximum_provider_cost_nanos)->toBe(10_000_000)
+        ->and($generation->maximum_charge_nanos)->toBe(12_500_000)
+        ->and($balance->held->nanos)->toBe(12_500_000)
+        ->and($balance->available()->nanos)->toBe(20_000_000 - 12_500_000);
+});
+
+it('raises the hold on the first rates seen on a queued snapshot too', function () {
+    $generation = heldGeneration();
+
+    app(ApplyGenerationSnapshot::class)->handle(
+        $generation->id,
+        pixelforgeSnapshot($generation, GenerationStatus::Queued, ['rates' => textRates(10_000)]),
+    );
+
+    expect($generation->refresh()->maximum_charge_nanos)->toBe(12_500_000);
+});
+
+it('never lowers the hold when the generation rates are lower', function () {
+    $generation = heldGeneration();
+
+    app(ApplyGenerationSnapshot::class)->handle(
+        $generation->id,
+        pixelforgeSnapshot($generation, GenerationStatus::Processing, ['rates' => textRates(2_500)]),
+    );
+
+    $generation->refresh();
+
+    expect($generation->maximum_provider_cost_nanos)->toBe(5_000_000)
+        ->and($generation->maximum_charge_nanos)->toBe(6_250_000);
+});
+
+it('only raises the hold on the first rates, not on later snapshots', function () {
+    $generation = heldGeneration();
+    $apply = app(ApplyGenerationSnapshot::class);
+
+    $apply->handle($generation->id, pixelforgeSnapshot($generation, GenerationStatus::Queued, ['rates' => textRates(5_000)]));
+    $apply->handle($generation->id, pixelforgeSnapshot($generation, GenerationStatus::Processing, ['rates' => textRates(10_000)]));
+
+    expect($generation->refresh()->maximum_charge_nanos)->toBe(6_250_000);
+});
+
+it('leaves the hold alone on a legacy generation without maximum tokens', function () {
+    $generation = heldGeneration(['maximum_tokens' => null]);
+
+    app(ApplyGenerationSnapshot::class)->handle(
+        $generation->id,
+        pixelforgeSnapshot($generation, GenerationStatus::Processing, ['rates' => textRates(10_000)]),
+    );
+
+    expect($generation->refresh()->maximum_charge_nanos)->toBe(6_250_000);
+});
+
+it('backfills the markup from the ledger row of a charged generation', function () {
+    $charged = Generation::factory()->create(['status' => GenerationStatus::Succeeded, 'markup_percent' => '99']);
+    LedgerEntry::query()->create([
+        'generation_id' => $charged->id,
+        'user_id' => $charged->user_id,
+        'provider_cost_nanos' => 10,
+        'charge_nanos' => 13,
+        'markup_percent' => '30',
+    ]);
+    $queued = Generation::factory()->create(['status' => GenerationStatus::Queued, 'markup_percent' => '99']);
+    config(['billing.markup_percent' => '17.5']);
+
+    $migration = require database_path('migrations/2026_11_17_200000_add_markup_and_maximum_tokens_to_generations_table.php');
+    $migration->backfill();
+
+    expect($charged->refresh()->markup_percent)->toBe('30')
+        ->and($queued->refresh()->markup_percent)->toBe('17.5');
+});
+
+it('refuses a second generation that fitted only the old hold once the hold is raised', function () {
+    Queue::fake();
+    Cache::put(GetCachedPricing::CACHE_KEY, SamplePricing::pricing()->toCacheArray(), 300);
+    // The old hold of 6 250 000 plus the worked example maximum of 467 343 750.
+    $user = User::factory()->withCredit('0.47359375')->create();
+    $generation = heldGeneration(['user_id' => $user->id]);
+    $createWorkedExample = fn () => app(CreateGeneration::class)->handle(
+        $user,
+        str_repeat('a', 400),
+        ImageSize::Landscape,
+        ImageQuality::High,
+        ['https://example.com/a.jpg', 'https://example.com/b.jpg'],
+    );
+
+    expect(app(GetCreditBalance::class)->handle($user)->available()->nanos)->toBe(467_343_750);
+
+    app(ApplyGenerationSnapshot::class)->handle(
+        $generation->id,
+        pixelforgeSnapshot($generation, GenerationStatus::Processing, ['rates' => textRates(10_000)]),
+    );
+
+    expect($createWorkedExample)->toThrow(InsufficientCredits::class)
+        ->and(Generation::query()->count())->toBe(1);
 });

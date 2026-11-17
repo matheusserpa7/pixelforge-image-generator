@@ -30,6 +30,8 @@ use Illuminate\Support\Carbon;
  * @property int $maximum_provider_cost_nanos
  * @property int $estimated_charge_nanos
  * @property int $maximum_charge_nanos
+ * @property string $markup_percent
+ * @property array<string, int>|null $maximum_tokens
  * @property int|null $provider_cost_nanos
  * @property int|null $charge_nanos
  * @property array<string, int>|null $rates
@@ -60,6 +62,8 @@ use Illuminate\Support\Carbon;
     'maximum_provider_cost_nanos',
     'estimated_charge_nanos',
     'maximum_charge_nanos',
+    'markup_percent',
+    'maximum_tokens',
 ])]
 final class Generation extends Model
 {
@@ -109,6 +113,7 @@ final class Generation extends Model
             'reference_images' => 'array',
             'rates' => 'array',
             'usage' => 'array',
+            'maximum_tokens' => 'array',
             'submit_unconfirmed' => 'boolean',
             'image_url_expires_at' => 'datetime',
             'provider_created_at' => 'datetime',

@@ -356,3 +356,21 @@ it('locks the user row inside the create transaction before inserting', function
         ->and($insert)->not->toBeFalse()
         ->and($lock)->toBeLessThan($insert);
 });
+
+it('stores the configured markup and the maximum token counts on the generation', function () {
+    config(['billing.markup_percent' => '30']);
+    $this->actingAs(User::factory()->withCredit()->create());
+    seedPricingCache();
+
+    $this->post(route('generations.store'), worked_example_payload())->assertRedirect(route('generations.index'));
+
+    $generation = Generation::query()->sole();
+
+    expect($generation->markup_percent)->toBe('30')
+        ->and($generation->maximum_tokens)->toEqual([
+            'input_text_tokens' => 115,
+            'input_image_tokens' => 1530,
+            'output_tokens' => 6450,
+            'reasoning_tokens' => 8000,
+        ]);
+});

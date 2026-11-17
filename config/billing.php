@@ -13,7 +13,7 @@ return [
     /*
     | How long GET /v1/pricing responses stay in the application cache (seconds).
     */
-    'pricing_cache_seconds' => (int) env('BILLING_PRICING_CACHE_SECONDS', 3600),
+    'pricing_cache_seconds' => (int) env('BILLING_PRICING_CACHE_SECONDS', 300),
 
     /*
     | Fake "Buy credits" packs, USD decimal strings (no floats).

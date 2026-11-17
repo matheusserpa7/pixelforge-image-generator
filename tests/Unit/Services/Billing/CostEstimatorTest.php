@@ -260,3 +260,21 @@ function sampleLikePricing(
         $reasoningTokens === [] ? $defaultsReasoning : $reasoningTokens,
     );
 }
+
+it('returns the maximum token counts of the worked example', function () {
+    $estimate = CostEstimator::estimate(
+        SamplePricing::pricing(),
+        str_repeat('a', 400),
+        ImageSize::Landscape,
+        ImageQuality::High,
+        2,
+        '25',
+    );
+
+    expect($estimate->maximumTokens->toStoredArray())->toBe([
+        'input_text_tokens' => 115,
+        'input_image_tokens' => 1530,
+        'output_tokens' => 6450,
+        'reasoning_tokens' => 8000,
+    ]);
+});

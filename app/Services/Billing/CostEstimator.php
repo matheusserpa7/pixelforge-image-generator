@@ -7,6 +7,7 @@ namespace App\Services\Billing;
 use App\Data\CostEstimate;
 use App\Data\GenerationRates;
 use App\Data\Pricing;
+use App\Data\TokenUsage;
 use App\Enums\ImageQuality;
 use App\Enums\ImageSize;
 use App\Support\Money\Money;
@@ -84,6 +85,7 @@ final class CostEstimator
             maximumProviderCost: $maximumProviderCost,
             estimatedCharge: $estimatedProviderCost->withMarkup($markupPercent),
             maximumCharge: $maximumProviderCost->withMarkup($markupPercent),
+            maximumTokens: new TokenUsage($textMaximum, $imageTokens, $outputTokens, $reasoningMaximum),
         );
     }
 

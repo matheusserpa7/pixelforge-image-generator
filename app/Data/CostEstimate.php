@@ -13,5 +13,6 @@ final readonly class CostEstimate
         public Money $maximumProviderCost,
         public Money $estimatedCharge,
         public Money $maximumCharge,
+        public TokenUsage $maximumTokens,
     ) {}
 }

@@ -33,16 +33,18 @@ final class CreateGeneration
     ): Generation {
         $pricing = $this->getCachedPricing->handle();
 
+        $markup = config()->string('billing.markup_percent');
+
         $estimate = CostEstimator::estimate(
             $pricing,
             $prompt,
             $size,
             $quality,
             count($referenceImages),
-            config()->string('billing.markup_percent'),
+            $markup,
         );
 
-        return DB::transaction(function () use ($user, $prompt, $size, $quality, $referenceImages, $estimate): Generation {
+        return DB::transaction(function () use ($user, $prompt, $size, $quality, $referenceImages, $estimate, $markup): Generation {
             // Serialize concurrent creates for this user so two submits cannot spend the same credit.
             User::query()->whereKey($user->id)->lockForUpdate()->firstOrFail();
 
@@ -63,6 +65,8 @@ final class CreateGeneration
                 'maximum_provider_cost_nanos' => $estimate->maximumProviderCost->nanos,
                 'estimated_charge_nanos' => $estimate->estimatedCharge->nanos,
                 'maximum_charge_nanos' => $estimate->maximumCharge->nanos,
+                'markup_percent' => $markup,
+                'maximum_tokens' => $estimate->maximumTokens->toStoredArray(),
             ]);
 
             SubmitGeneration::dispatch($generation->id)->afterCommit();
