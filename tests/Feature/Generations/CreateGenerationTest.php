@@ -84,6 +84,18 @@ it('rejects invalid input and stores nothing', function (array $payload) {
     ])],
 ]);
 
+it('uses a readable attribute name in reference url errors', function () {
+    $this->actingAs(User::factory()->create());
+
+    $response = $this->postJson(route('generations.store'), validGenerationPayload([
+        'reference_images' => ['ftp://example.com/a.png'],
+    ]));
+
+    $response->assertUnprocessable();
+    expect($response->json('errors')['reference_images.0'][0])
+        ->toBe('The reference image URL field must be a valid URL.');
+});
+
 it('stores the worked example estimate in nano-usd', function () {
     $user = User::factory()->create();
     $this->actingAs($user);

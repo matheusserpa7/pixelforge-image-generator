@@ -148,6 +148,10 @@ In `routes/web.php`, inside `auth`:
 Register `generation-estimates` in `AppServiceProvider`: 60 per minute per user id. Change Fortify
 `home` to `/generations`.
 
+Both form requests define `attributes()` so validation messages read well: `reference_images` is
+`reference images` and `reference_images.*` is `reference image URL` (for example "The reference image
+URL field must be a valid URL.").
+
 `index(Request $request, #[CurrentUser] User $user)`: `Gate::authorize('viewAny', Generation::class)`,
 then `Generation::query()->forUser($user)->orderByDesc('created_at')->orderByDesc('id')->paginate(20)`,
 render `generations/Index` with `generations` = `GenerationResource::collection($paginator)` and

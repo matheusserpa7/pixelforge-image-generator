@@ -55,6 +55,17 @@ final class StoreGenerationRequest extends FormRequest
         ];
     }
 
+    /**
+     * @return array<string, string>
+     */
+    public function attributes(): array
+    {
+        return [
+            'reference_images' => 'reference images',
+            'reference_images.*' => 'reference image URL',
+        ];
+    }
+
     public function prompt(): string
     {
         return $this->string('prompt')->toString();
