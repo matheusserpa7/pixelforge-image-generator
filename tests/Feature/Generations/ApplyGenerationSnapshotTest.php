@@ -11,6 +11,7 @@ use App\Data\PixelforgeGenerationError;
 use App\Data\TokenUsage;
 use App\Enums\GenerationStatus;
 use App\Enums\SnapshotOutcome;
+use App\Jobs\DownloadGenerationImage;
 use App\Models\Generation;
 use App\Models\LedgerEntry;
 use App\Models\User;
@@ -20,6 +21,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
 use LogicException;
 
 beforeEach(function () {
@@ -465,4 +467,38 @@ it('nulls user id on generation and ledger when the user is deleted', function (
         ->and(Generation::query()->find($generation->id)?->user_id)->toBeNull()
         ->and(LedgerEntry::query()->find($ledgerId))->not->toBeNull()
         ->and(LedgerEntry::query()->find($ledgerId)?->user_id)->toBeNull();
+});
+
+it('dispatches the image download only on the succeeded transition', function () {
+    Queue::fake();
+
+    $generation = Generation::factory()->create(['status' => GenerationStatus::Queued]);
+    $apply = app(ApplyGenerationSnapshot::class);
+    $usage = new TokenUsage(inputText: 2, inputImage: 0, output: 0, reasoning: 0);
+
+    $apply->handle($generation->id, pixelforgeSnapshot($generation, GenerationStatus::Queued));
+    $apply->handle($generation->id, pixelforgeSnapshot($generation, GenerationStatus::Processing));
+    $apply->handle($generation->id, pixelforgeSnapshot($generation, GenerationStatus::Succeeded));
+
+    Queue::assertNotPushed(DownloadGenerationImage::class);
+
+    $succeeded = pixelforgeSnapshot($generation, GenerationStatus::Succeeded, ['usage' => $usage]);
+    $apply->handle($generation->id, $succeeded);
+
+    Queue::assertPushed(DownloadGenerationImage::class, fn (DownloadGenerationImage $job): bool => $job->generationId === $generation->id);
+    Queue::assertPushed(DownloadGenerationImage::class, 1);
+
+    $apply->handle($generation->id, $succeeded);
+
+    Queue::assertPushed(DownloadGenerationImage::class, 1);
+});
+
+it('dispatches no image download for a failed generation', function () {
+    Queue::fake();
+
+    $generation = Generation::factory()->create(['status' => GenerationStatus::Processing, 'provider_id' => 'gen_provider_1']);
+
+    app(ApplyGenerationSnapshot::class)->handle($generation->id, pixelforgeSnapshot($generation, GenerationStatus::Failed));
+
+    Queue::assertNotPushed(DownloadGenerationImage::class);
 });

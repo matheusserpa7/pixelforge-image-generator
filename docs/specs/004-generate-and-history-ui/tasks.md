@@ -2,7 +2,7 @@
 
 Status: **approved** · 2026-11-16 · Tech spec: [tech-spec.md](tech-spec.md)
 
-- [ ] **T1. Image copy and image route.** `image_path` migration, `generation_images_disk` config and
+- [x] **T1. Image copy and image route.** `image_path` migration, `generation_images_disk` config and
       `.env.example` line, `DownloadGenerationImage`, the `afterCommit` dispatch in
       `ApplyGenerationSnapshot::applySucceeded`, `GenerationImageController` and the
       `generations.image` route, with their tests. Tech spec: Migration, Config,

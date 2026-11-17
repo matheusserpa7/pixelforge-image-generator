@@ -8,6 +8,7 @@ use App\Data\PixelforgeGeneration;
 use App\Data\TokenUsage;
 use App\Enums\GenerationStatus;
 use App\Enums\SnapshotOutcome;
+use App\Jobs\DownloadGenerationImage;
 use App\Models\Generation;
 use App\Models\LedgerEntry;
 use App\Services\Billing\ActualCost;
@@ -154,6 +155,8 @@ final class ApplyGenerationSnapshot
         $generation->image_url_expires_at = self::toCarbon($snapshot->imageUrlExpiresAt);
         $this->applyProviderTimestamps($generation, $snapshot);
         $generation->save();
+
+        DownloadGenerationImage::dispatch($generation->id)->afterCommit();
 
         return SnapshotOutcome::Applied;
     }

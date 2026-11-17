@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Actions\GetCachedPricing;
 use App\Data\PixelforgeGeneration;
 use App\Enums\GenerationStatus;
+use App\Jobs\DownloadGenerationImage;
 use App\Jobs\PollGeneration;
 use App\Models\Generation;
 use App\Models\LedgerEntry;
@@ -14,10 +15,12 @@ use App\Services\Pixelforge\PixelforgeException;
 use App\Services\Pixelforge\PixelforgeRequestLimiter;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\RateLimiter;
 
 beforeEach(function () {
     Http::preventStrayRequests();
+    Queue::fake([DownloadGenerationImage::class]);
     Cache::forget(GetCachedPricing::CACHE_KEY);
     RateLimiter::clear(PixelforgeRequestLimiter::RATE_KEY);
 

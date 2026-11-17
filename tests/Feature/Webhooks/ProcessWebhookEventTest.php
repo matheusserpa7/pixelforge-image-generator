@@ -6,6 +6,7 @@ use App\Data\GenerationRates;
 use App\Data\TokenUsage;
 use App\Enums\GenerationStatus;
 use App\Enums\WebhookEventOutcome;
+use App\Jobs\DownloadGenerationImage;
 use App\Jobs\ProcessWebhookEvent;
 use App\Jobs\SubmitGeneration;
 use App\Models\Generation;
@@ -16,9 +17,11 @@ use App\Services\Pixelforge\FakePixelforgeClient;
 use App\Services\Pixelforge\PixelforgeClient;
 use App\Services\Pixelforge\PixelforgeException;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
 
 beforeEach(function () {
     Http::preventStrayRequests();
+    Queue::fake([DownloadGenerationImage::class]);
     config(['billing.markup_percent' => '25']);
 });
 

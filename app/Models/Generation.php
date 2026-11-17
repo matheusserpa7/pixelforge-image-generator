@@ -38,6 +38,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $error_message
  * @property string|null $image_url
  * @property Carbon|null $image_url_expires_at
+ * @property string|null $image_path
  * @property Carbon|null $provider_created_at
  * @property Carbon|null $provider_started_at
  * @property Carbon|null $provider_completed_at
