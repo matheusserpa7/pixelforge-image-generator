@@ -1,6 +1,6 @@
 # 003 Webhooks and reconciliation: tech spec
 
-Status: **approved** · 2026-11-16 · PRD: [prd.md](prd.md)
+Status: **implemented** · 2026-11-16 · PRD: [prd.md](prd.md)
 
 Implements ADR 0008, ADR 0009 and ADR 0011 on top of spec 002. The provider contract is
 [docs/product/pixelforge-api.md](../../product/pixelforge-api.md); where this file and that summary

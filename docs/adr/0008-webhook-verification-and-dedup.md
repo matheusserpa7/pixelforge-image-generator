@@ -21,3 +21,7 @@ non-2xx answer or after 10 seconds.
 
 - Duplicates are dropped by a database constraint, not by application logic alone.
 - Processing failures do not trigger Pixelforge retries; our job retries and reconciliation cover them.
+- The event id used for deduplication is the `id` of the signed body, not the unsigned
+  `Pixelforge-Event-Id` header. A signed body without a readable `id` or `type` gets `400`; a bad or
+  stale signature gets `401`. Each stored event records what processing did with it (`outcome`).
+  Spec: [003-webhooks-and-reconciliation](../specs/003-webhooks-and-reconciliation/).

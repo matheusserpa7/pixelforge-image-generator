@@ -1,6 +1,6 @@
 # 003 Webhooks and reconciliation: PRD
 
-Status: **approved** · 2026-11-16
+Status: **implemented** · 2026-11-16
 
 ## Problem
 
