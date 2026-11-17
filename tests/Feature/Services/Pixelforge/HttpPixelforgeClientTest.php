@@ -279,6 +279,21 @@ it('rejects a non-json success body', function () {
     }
 });
 
+it('treats a 500 with a non-json body as a retryable unknown error', function () {
+    Http::fake([
+        'https://pixelforge.test/v1/pricing' => Http::response('boom', 500),
+    ]);
+
+    try {
+        client()->pricing();
+        test()->fail('Expected PixelforgeException.');
+    } catch (PixelforgeException $exception) {
+        expect($exception->retryable)->toBeTrue()
+            ->and($exception->status)->toBe(500)
+            ->and($exception->errorCode)->toBe('unknown_error');
+    }
+});
+
 it('ignores a Retry-After HTTP date', function () {
     Http::fake([
         'https://pixelforge.test/v1/pricing' => Http::response(

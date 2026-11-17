@@ -242,7 +242,7 @@ it('releases when success is missing usage', function () {
     $generation->refresh();
 
     expect($generation->status)->toBe(GenerationStatus::Queued)
-        ->and($generation->provider_id)->toBeNull()
+        ->and($generation->provider_id)->not->toBeNull()
         ->and($job->assertReleased(1))->toBeInstanceOf(SubmitGeneration::class);
 });
 
@@ -261,7 +261,6 @@ it('fails an incomplete success once submit attempts are exhausted', function ()
     expect($generation->status)->toBe(GenerationStatus::Failed)
         ->and($generation->error_code)->toBe('invalid_response')
         ->and($generation->error_message)->toBe(GenerationFailureMessage::forCode('invalid_response'))
-        ->and($generation->provider_id)->toBeNull()
         ->and($client->created)->toHaveCount(1)
         ->and(LedgerEntry::query()->count())->toBe(0);
 

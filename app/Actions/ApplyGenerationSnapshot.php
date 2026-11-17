@@ -40,6 +40,8 @@ final class ApplyGenerationSnapshot
             }
 
             if ($snapshot->status === GenerationStatus::Succeeded && $snapshot->usage === null) {
+                $this->fillNullsOnly($generation, $snapshot);
+
                 return SnapshotOutcome::Incomplete;
             }
 

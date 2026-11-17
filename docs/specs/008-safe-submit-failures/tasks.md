@@ -4,7 +4,7 @@ Status: **approved** · 2026-11-16 · Tech spec: [tech-spec.md](tech-spec.md)
 
 Precondition: spec 003 is `implemented`.
 
-- [ ] **T1. Error classification and incomplete snapshots.** `PixelforgeException`: every `5xx`
+- [x] **T1. Error classification and incomplete snapshots.** `PixelforgeException`: every `5xx`
       retryable, `provesKeyUnknown()`, `createdNothing()`. `ApplyGenerationSnapshot`: the incomplete
       branch fills nulls and still returns `incomplete`. Their tests, including the replaced
       incomplete case. Tech spec: Model and contracts (`PixelforgeException`, `ApplyGenerationSnapshot`),

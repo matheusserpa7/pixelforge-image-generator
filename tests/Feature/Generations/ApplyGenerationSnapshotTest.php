@@ -221,20 +221,47 @@ it('does not double charge when the succeeded snapshot is applied again', functi
         ->and($generation->charge_nanos)->toBe(3);
 });
 
-it('returns incomplete for succeeded without usage and leaves provider id null', function () {
+it('returns incomplete for succeeded without usage but stores provider data', function () {
     $generation = Generation::factory()->create(['status' => GenerationStatus::Queued]);
     $apply = app(ApplyGenerationSnapshot::class);
+    $snapshot = pixelforgeSnapshot($generation, GenerationStatus::Succeeded, ['usage' => null]);
 
-    $outcome = $apply->handle(
-        $generation->id,
-        pixelforgeSnapshot($generation, GenerationStatus::Succeeded, ['usage' => null]),
-    );
+    $outcome = $apply->handle($generation->id, $snapshot);
 
     $generation->refresh();
 
     expect($outcome)->toBe(SnapshotOutcome::Incomplete)
-        ->and($generation->provider_id)->toBeNull()
+        ->and($generation->provider_id)->toBe($snapshot->id)
+        ->and($generation->rates)->not->toBeNull()
+        ->and($generation->provider_created_at)->not->toBeNull()
+        ->and($generation->status)->toBe(GenerationStatus::Queued)
         ->and(LedgerEntry::query()->count())->toBe(0);
+
+    $apply->handle(
+        $generation->id,
+        pixelforgeSnapshot($generation, GenerationStatus::Succeeded, [
+            'id' => $snapshot->id,
+            'usage' => new TokenUsage(inputText: 10, inputImage: 0, output: 100, reasoning: 0),
+        ]),
+    );
+
+    expect($generation->refresh()->status)->toBe(GenerationStatus::Succeeded)
+        ->and(LedgerEntry::query()->count())->toBe(1);
+});
+
+it('ignores an incomplete snapshot with a mismatched provider id', function () {
+    $generation = Generation::factory()->create([
+        'status' => GenerationStatus::Queued,
+        'provider_id' => 'gen_mine',
+    ]);
+
+    $outcome = app(ApplyGenerationSnapshot::class)->handle(
+        $generation->id,
+        pixelforgeSnapshot($generation, GenerationStatus::Succeeded, ['id' => 'gen_other', 'usage' => null]),
+    );
+
+    expect($outcome)->toBe(SnapshotOutcome::Ignored)
+        ->and($generation->refresh()->provider_id)->toBe('gen_mine');
 });
 
 it('writes a zero cost ledger row when usage is all zeros', function () {

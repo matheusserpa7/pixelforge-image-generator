@@ -70,17 +70,48 @@ final class PixelforgeException extends RuntimeException
         );
     }
 
+    /**
+     * True only when the provider would have accepted this key earlier had the request ever been valid
+     * for it: replays skip the concurrency and daily limits, and validation and content policy depend
+     * only on the request.
+     */
+    public function provesKeyUnknown(): bool
+    {
+        return ($this->status === 429 && in_array($this->errorCode, ['concurrency_limit_exceeded', 'daily_limit_exceeded'], true))
+            || ($this->status === 422 && $this->errorCode === 'validation_failed')
+            || ($this->status === 400 && $this->errorCode === 'content_policy_violation');
+    }
+
+    /**
+     * True when this attempt certainly created nothing at the provider.
+     */
+    public function createdNothing(): bool
+    {
+        if ($this->provesKeyUnknown()) {
+            return true;
+        }
+
+        $isClientError = $this->status >= 400 && $this->status <= 499;
+
+        return ($isClientError && $this->errorCode !== 'idempotency_key_reused')
+            || ($this->status === 503 && $this->errorCode === 'overloaded');
+    }
+
     private static function isRetryable(int $status, string $errorCode): bool
     {
+        if ($errorCode === 'invalid_response') {
+            return false;
+        }
+
+        if ($status >= 500) {
+            return true;
+        }
+
         if ($errorCode === 'connection_failed') {
             return true;
         }
 
         if ($status === 429 && in_array($errorCode, ['rate_limit_exceeded', 'concurrency_limit_exceeded'], true)) {
-            return true;
-        }
-
-        if ($status === 503 && $errorCode === 'overloaded') {
             return true;
         }
 
