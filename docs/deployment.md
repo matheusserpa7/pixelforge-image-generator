@@ -1,16 +1,23 @@
 # Deployment runbook
 
-The app runs from `compose.prod.yaml` on a single VPS. FrankenPHP's built-in Caddy terminates HTTPS
-(Let's Encrypt, renewed automatically) on ports 80/443. Public URL:
-`https://pixelforge.matheusserpa.online`.
+The app runs from `compose.prod.yaml` on a single VPS, behind the VPS's shared **edge proxy** (an
+nginx container that owns ports 80/443 and terminates HTTPS for every site on the server). Public
+URL: `https://pixelforge.matheusserpa.online`.
+
+```
+browser --HTTPS--> edge nginx --HTTP--> pixelforge-app:8080 (network "edge")
+```
+
+The app publishes no host port. The edge proxy reaches the web container by its alias
+`pixelforge-app` on the external Docker network `edge`; Horizon, the scheduler, MySQL and Redis stay
+on the project's own network.
 
 ## 1. Requirements
 
-- A VPS with Docker Engine and the Compose plugin.
-- Ports 80 and 443 (TCP, plus UDP 443 for HTTP/3) open and free. Check with `ss -tlnp`.
+- A VPS with Docker Engine and the Compose plugin, and an SSH user in the `docker` group.
+- The edge proxy running, with its external Docker network (`docker network ls` shows `edge`).
 - About 3 GB of RAM for the stack, plus about 2 GB while an image builds. Check with `free -h`.
-- The DNS `A` (and `AAAA`) record of the domain points to the VPS before the first start. Check with
-  `dig +short <domain>`. Otherwise the certificate request fails and Let's Encrypt rate limits retries.
+- The DNS `A` (and `AAAA`) record of the domain points to the VPS. Check with `dig +short <domain>`.
 
 ## 2. Pixelforge
 
@@ -19,33 +26,95 @@ The app runs from `compose.prod.yaml` on a single VPS. FrankenPHP's built-in Cad
 2. Set that key's webhook URL to `https://<domain>/webhooks/pixelforge`.
 3. Keep the key and the `whsec_...` signing secret for the next step.
 
-## 3. First install
+## 3. Edge proxy
 
-On the server:
+Changes on the VPS, outside this repository. The edge files live in `/home/deploy/edge`. Take a copy
+of `nginx/default.conf` first, and always run `nginx -t` before reloading: a failed test leaves the
+running config in place, while a bad config would take every site down.
+
+1. In `nginx/default.conf`, add `pixelforge.matheusserpa.online` to the `server_name` list of the
+   port-80 block that serves `/.well-known/acme-challenge/` from `/var/www/certbot`, then:
+
+   ```sh
+   cd /home/deploy/edge
+   docker compose exec nginx nginx -t && docker compose exec nginx nginx -s reload
+   ```
+
+   Check that the challenge path reaches the edge (a `404`, not a closed connection) before asking
+   for a certificate: `curl -i http://pixelforge.matheusserpa.online/.well-known/acme-challenge/x`.
+
+2. Issue a certificate of its own (the other sites' certificates are not touched; the nightly
+   `renew.sh` renews every certificate in that folder):
+
+   ```sh
+   cd /home/deploy/edge
+   docker run --rm \
+     -v "$PWD/certbot/conf:/etc/letsencrypt" \
+     -v "$PWD/certbot/www:/var/www/html/public" \
+     certbot/certbot:latest certonly --webroot -w /var/www/html/public \
+     --cert-name pixelforge.matheusserpa.online -d pixelforge.matheusserpa.online \
+     --non-interactive --agree-tos --no-eff-email --register-unsafely-without-email
+   ```
+
+3. Add the HTTPS block to `nginx/default.conf`, then run the `nginx -t` and reload commands again:
+
+   ```nginx
+   # ----------------------------------------------------------------------------- pixelforge
+   server {
+       listen 443 ssl;
+       http2 on;
+       server_name pixelforge.matheusserpa.online;
+
+       ssl_certificate /etc/letsencrypt/live/pixelforge.matheusserpa.online/fullchain.pem;
+       ssl_certificate_key /etc/letsencrypt/live/pixelforge.matheusserpa.online/privkey.pem;
+
+       set $pixelforge http://pixelforge-app:8080;
+
+       location / {
+           proxy_http_version 1.1;
+           proxy_set_header Host $host;
+           proxy_set_header X-Real-IP $remote_addr;
+           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+           proxy_set_header X-Forwarded-Proto https;
+           proxy_pass $pixelforge;
+           proxy_read_timeout 60s;
+       }
+   }
+   ```
+
+   `proxy_pass $pixelforge` relies on the `resolver 127.0.0.11` already declared in that file (Docker's
+   DNS); with it, the `set $var` pattern lets nginx start even when the app is down, and it answers
+   `502` until the app is up. Check the `resolver` line is there before reloading.
+
+## 4. First install
+
+On the server, as the SSH user:
 
 ```sh
-git clone https://github.com/matheusserpa7/pixelforge-image-generator /opt/pixelforge-studio
-cd /opt/pixelforge-studio
+git clone https://github.com/matheusserpa7/pixelforge-image-generator ~/pixelforge-studio
+cd ~/pixelforge-studio
 cp .env.example .env
 chmod 600 .env
 ```
 
 Edit `.env` and change:
 
-| Variable                                  | Value                                         |
-| ----------------------------------------- | --------------------------------------------- |
-| `APP_ENV`                                 | `production`                                  |
-| `APP_DEBUG`                               | `false`                                       |
-| `APP_KEY`                                 | output of `echo "base64:$(openssl rand -base64 32)"` |
-| `APP_URL`                                 | `https://<domain>`                            |
-| `APP_DOMAIN`                              | `<domain>`                                    |
-| `LOG_LEVEL`                               | `info`                                        |
-| `DB_PASSWORD`, `DB_ROOT_PASSWORD`         | strong, unique values                         |
-| `PIXELFORGE_API_KEY`                      | the production key                            |
-| `PIXELFORGE_WEBHOOK_SECRET`               | the production `whsec_...` secret             |
-| `SENTRY_LARAVEL_DSN`                      | optional                                      |
+| Variable                          | Value                                                |
+| --------------------------------- | ---------------------------------------------------- |
+| `APP_ENV`                         | `production`                                         |
+| `APP_DEBUG`                       | `false`                                              |
+| `APP_KEY`                         | output of `echo "base64:$(openssl rand -base64 32)"` |
+| `APP_URL`                         | `https://<domain>`                                   |
+| `LOG_LEVEL`                       | `info`                                               |
+| `DB_PASSWORD`, `DB_ROOT_PASSWORD` | strong, unique values                                |
+| `PIXELFORGE_API_KEY`              | the production key                                   |
+| `PIXELFORGE_WEBHOOK_SECRET`       | the production `whsec_...` secret                    |
+| `SENTRY_LARAVEL_DSN`              | optional                                             |
 
-Then, from the maintainer's machine (see section 5):
+Leave `TRUSTED_PROXIES` unset: the app publishes no port, so only containers on its Docker networks
+(the edge proxy) can reach it, and the edge proxy sets the real client address.
+
+Then, from the maintainer's machine (see section 6):
 
 ```sh
 make deploy DEPLOY_HOST=<ssh destination>
@@ -53,7 +122,7 @@ make deploy DEPLOY_HOST=<ssh destination>
 
 or on the server: `docker compose -f compose.prod.yaml up -d --build --wait`.
 
-## 4. Admin
+## 5. Admin
 
 Register in the browser, then promote the account:
 
@@ -63,11 +132,12 @@ docker compose -f compose.prod.yaml exec app php artisan users:make-admin <email
 
 Admins can open `/horizon` and `/pulse`; regular users get `403`. No account is seeded in production.
 
-## 5. Ship a version
+## 6. Ship a version
 
 1. Push to `main` and wait for CI to be green.
 2. Run `make deploy DEPLOY_HOST=<ssh destination>` (or `DEPLOY_HOST=... make deploy`).
-   Optional: `DEPLOY_PATH` (default `/opt/pixelforge-studio`), `DEPLOY_URL`.
+   Optional: `DEPLOY_PATH` (default `pixelforge-studio`, relative to the SSH user's home),
+   `DEPLOY_URL`.
 
 The script pulls `main` on the server, rebuilds, recreates changed containers, waits for their
 healthchecks and ends by calling `<url>/health`: `Healthy` or `Health check failed`.
@@ -76,15 +146,17 @@ A deploy interrupts the web app for a few seconds. Pixelforge retries failed web
 reconciliation polls stuck generations every minute, and queued jobs wait in Redis. Horizon stops
 gracefully (up to 60 s).
 
-## 6. Operate
+## 7. Operate
 
 - Health: `curl https://<domain>/health`
 - Status: `docker compose -f compose.prod.yaml ps`
 - Logs: `docker compose -f compose.prod.yaml logs -f app horizon` (rotated: 5 files of 10 MB each)
 - Dashboards: `https://<domain>/horizon` and `https://<domain>/pulse` (admin only)
-- Data lives in named volumes: `mysql`, `redis`, `storage` (generated images) and `caddy_data`
-  (certificates). `docker compose down -v` destroys all of them. There are no backups.
+- Certificate: issued and renewed by the edge proxy's `renew.sh`, not by this stack.
+- Data lives in named volumes: `mysql`, `redis` and `storage` (generated images).
+  `docker compose down -v` destroys all of them. There are no backups.
 
-## 7. Never in production
+## 8. Never in production
 
-`db:seed`, `migrate:fresh`, `make fresh`, `docker compose down -v`.
+`db:seed`, `migrate:fresh`, `make fresh`, `docker compose down -v`. Never publish a host port for the
+app: the trusted-proxy default would let clients forge their IP.

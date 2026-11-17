@@ -1,7 +1,8 @@
-# Production stack for a single VPS, served over HTTPS by FrankenPHP's Caddy:
-#   - APP_DOMAIN (in .env) must resolve to this server; ports 80 and 443 (TCP, plus UDP 443) must be free.
-#   - Certificates live in the caddy_data volume; never remove it between deploys.
-#   - Ship a version from your machine with `make deploy DEPLOY_HOST=user@host` (docs/deployment.md).
+# Production stack for a single VPS, served behind the VPS's shared edge proxy (docs/deployment.md):
+#   - The edge proxy terminates HTTPS and forwards to `pixelforge-app:8080` over the external
+#     `edge` Docker network, which must already exist. No host port is published: keep it that way,
+#     the app trusts X-Forwarded-* from private networks (TRUSTED_PROXIES).
+#   - Ship a version from your machine with `make deploy DEPLOY_HOST=user@host`.
 #   docker compose -f compose.prod.yaml up -d --build --wait
 # Same Dockerfile as development, `prod` target: no bind mounts, no Vite.
 # All settings come from .env (APP_ENV=production, real secrets, never committed).
@@ -39,18 +40,11 @@ services:
         <<: *app
         environment:
             RUN_MIGRATIONS: 'true'
-            # Caddy gets a certificate for the domain; plain :8080 stays internal for the healthcheck.
-            SERVER_NAME: '${APP_DOMAIN:?APP_DOMAIN is required}, :8080'
-            # Nothing proxies the app in production: never trust forwarding headers.
-            TRUSTED_PROXIES: ''
-        ports:
-            - '80:80'
-            - '443:443'
-            - '443:443/udp'
-        volumes:
-            - storage:/app/storage/app
-            - caddy_data:/data
-            - caddy_config:/config
+        networks:
+            default: {}
+            edge:
+                aliases:
+                    - pixelforge-app
 
     horizon:
         <<: *app
@@ -131,5 +125,8 @@ volumes:
     mysql:
     redis:
     storage:
-    caddy_data:
-    caddy_config:
+
+networks:
+    edge:
+        name: '${EDGE_NETWORK:-edge}'
+        external: true

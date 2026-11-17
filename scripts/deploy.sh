@@ -3,12 +3,12 @@
 # Usage: DEPLOY_HOST=user@host sh scripts/deploy.sh   (or: make deploy DEPLOY_HOST=user@host)
 set -eu
 
-DEPLOY_PATH="${DEPLOY_PATH:-/opt/pixelforge-studio}"
+DEPLOY_PATH="${DEPLOY_PATH:-pixelforge-studio}"
 DEPLOY_URL="${DEPLOY_URL:-https://pixelforge.matheusserpa.online}"
 
 if [ -z "${DEPLOY_HOST:-}" ]; then
     echo "Usage: DEPLOY_HOST=user@host sh scripts/deploy.sh" >&2
-    echo "Optional: DEPLOY_PATH (default /opt/pixelforge-studio), DEPLOY_URL (default $DEPLOY_URL)." >&2
+    echo "Optional: DEPLOY_PATH (default pixelforge-studio), DEPLOY_URL (default $DEPLOY_URL)." >&2
     exit 1
 fi
 

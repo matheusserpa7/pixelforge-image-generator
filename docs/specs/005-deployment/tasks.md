@@ -13,7 +13,7 @@ Status: **approved** · 2026-11-17 (revised: shared edge proxy) · Tech spec: [t
       `docs/deployment.md`. Tech spec: Decisions 5, 8; `users:make-admin` command; `DatabaseSeeder`
       guard; `scripts/deploy.sh` and `make deploy`; `docs/deployment.md`; Tests (T2 rows).
       Reviewer: Opus.
-- [ ] **T3. Move the production stack behind the edge proxy.** `compose.prod.yaml` (no published
+- [x] **T3. Move the production stack behind the edge proxy.** `compose.prod.yaml` (no published
       ports, no `SERVER_NAME` override, no Caddy volumes, no `TRUSTED_PROXIES: ''`; joins the external
       `edge` network as `pixelforge-app`), revert the `Dockerfile` `setcap`, `.env.example` (drop
       `APP_DOMAIN`, rewrite the `TRUSTED_PROXIES` comment), the edge-chain test case,
