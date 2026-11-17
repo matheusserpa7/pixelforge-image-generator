@@ -15,4 +15,9 @@ return [
     */
     'pricing_cache_seconds' => (int) env('BILLING_PRICING_CACHE_SECONDS', 3600),
 
+    /*
+    | Fake "Buy credits" packs, USD decimal strings (no floats).
+    */
+    'credit_packs_usd' => ['5', '10', '25'],
+
 ];

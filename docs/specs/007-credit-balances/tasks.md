@@ -9,7 +9,7 @@ Status: **approved** · 2026-11-17 · Tech spec: [tech-spec.md](tech-spec.md)
       `UserFactory::withCredit()`, seeder credit, existing generation tests funded, and the unit and
       feature tests for all of it. Tech spec: Model and contracts; Behaviour in code → Blocking,
       HTTP (store, estimate); Seed and factories; Tests. Reviewer: Opus.
-- [ ] **T2. Buy credits back end.** `credit_packs_usd` config, `PurchaseCredits` with the idempotency
+- [x] **T2. Buy credits back end.** `credit_packs_usd` config, `PurchaseCredits` with the idempotency
       key, `PurchaseCreditsRequest`, `CreditController` (`index`, `purchase`), routes and the
       `credit-purchases` limiter, the lazy `credits` shared prop, and their feature tests. Tech spec:
       Model and contracts → Config, actions; Behaviour in code → HTTP; Tests. Reviewer: Opus.

@@ -104,6 +104,10 @@ final class AppServiceProvider extends ServiceProvider
         RateLimiter::for('generation-estimates', fn (Request $request): Limit => Limit::perMinute(60)
             ->by((string) ($request->user()->id ?? $request->ip())));
 
+        // Fake credit purchases per signed-in user.
+        RateLimiter::for('credit-purchases', fn (Request $request): Limit => Limit::perMinute(10)
+            ->by((string) ($request->user()->id ?? $request->ip())));
+
         // Webhook deliveries per source IP. Pixelforge retries anything that is rejected.
         RateLimiter::for('webhooks', fn (Request $request): Limit => Limit::perMinute(300)
             ->by((string) $request->ip()));

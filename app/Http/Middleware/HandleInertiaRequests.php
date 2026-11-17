@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Actions\GetCreditBalance;
+use App\Http\Resources\MoneyView;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Middleware;
@@ -44,6 +46,9 @@ final class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user(),
                 'isAdmin' => $request->user() !== null && Gate::forUser($request->user())->allows('admin'),
+            ],
+            'credits' => fn (): ?array => $request->user() === null ? null : [
+                'available' => MoneyView::of(app(GetCreditBalance::class)->handle($request->user())->available()->nanos),
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];
