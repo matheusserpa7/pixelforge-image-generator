@@ -57,3 +57,31 @@ it('rejects a second run when the per-minute limit is one', function () {
             ->and($secondCallbackRan)->toBeFalse();
     }
 });
+
+it('attempt does not need a concurrency slot', function () {
+    config(['services.pixelforge.concurrency_limit' => 1]);
+
+    $limiter = new PixelforgeRequestLimiter;
+
+    $limiter->run(function () use ($limiter): void {
+        expect($limiter->attempt(fn (): string => 'ok'))->toBe('ok');
+    });
+});
+
+it('attempt throws PixelforgeBusy without running the callback when the budget is spent', function () {
+    config(['services.pixelforge.requests_per_minute' => 1]);
+
+    $limiter = new PixelforgeRequestLimiter;
+    $limiter->attempt(fn (): string => 'first');
+
+    $ran = false;
+
+    try {
+        $limiter->attempt(function () use (&$ran): void {
+            $ran = true;
+        });
+        test()->fail('Expected PixelforgeBusy.');
+    } catch (PixelforgeBusy $busy) {
+        expect($busy->retryAfterSeconds)->toBeGreaterThanOrEqual(1)->and($ran)->toBeFalse();
+    }
+});

@@ -8,6 +8,8 @@ use App\Data\CreatedGeneration;
 use App\Data\CreateGenerationRequest;
 use App\Data\PixelforgeGeneration;
 use App\Data\Pricing;
+use App\Data\ProviderUsage;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
@@ -71,6 +73,30 @@ final class HttpPixelforgeClient implements PixelforgeClient
         return $this->withConnectionHandling(fn (): PixelforgeGeneration => $this->decodeGeneration(
             $this->request()->get($this->baseUrl.'/generations/'.rawurlencode($id)),
         ));
+    }
+
+    public function usage(CarbonImmutable $startDate, CarbonImmutable $endDate): ProviderUsage
+    {
+        return $this->withConnectionHandling(function () use ($startDate, $endDate): ProviderUsage {
+            $response = $this->request()->get($this->baseUrl.'/usage', [
+                'start_date' => $startDate->format('Y-m-d'),
+                'end_date' => $endDate->format('Y-m-d'),
+            ]);
+
+            if (! $response->successful()) {
+                throw $this->providerException($response);
+            }
+
+            try {
+                return ProviderUsage::fromDecoded(DecimalJson::decode($response->body()));
+            } catch (InvalidArgumentException $exception) {
+                throw PixelforgeException::invalidResponse(
+                    $exception->getMessage(),
+                    $response->status(),
+                    $exception,
+                );
+            }
+        });
     }
 
     /**

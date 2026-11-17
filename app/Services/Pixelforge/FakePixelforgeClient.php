@@ -10,8 +10,10 @@ use App\Data\GenerationRates;
 use App\Data\PixelforgeGeneration;
 use App\Data\PixelforgeGenerationError;
 use App\Data\Pricing;
+use App\Data\ProviderUsage;
 use App\Data\TokenUsage;
 use App\Enums\GenerationStatus;
+use App\Support\Money\Money;
 use Carbon\CarbonImmutable;
 
 /**
@@ -30,6 +32,15 @@ final class FakePixelforgeClient implements PixelforgeClient
      * @var array<string, PixelforgeGeneration>
      */
     public array $generations = [];
+
+    public ?ProviderUsage $usage = null;
+
+    public ?PixelforgeException $usageFailure = null;
+
+    /**
+     * @var list<array{start: string, end: string}>
+     */
+    public array $usageCalls = [];
 
     public ?PixelforgeException $failure = null;
 
@@ -140,6 +151,20 @@ final class FakePixelforgeClient implements PixelforgeClient
         }
 
         return $generation;
+    }
+
+    public function usage(CarbonImmutable $startDate, CarbonImmutable $endDate): ProviderUsage
+    {
+        $this->usageCalls[] = [
+            'start' => $startDate->format('Y-m-d'),
+            'end' => $endDate->format('Y-m-d'),
+        ];
+
+        if ($this->usageFailure !== null) {
+            throw $this->usageFailure;
+        }
+
+        return $this->usage ?? new ProviderUsage($startDate, $endDate, [], Money::zero());
     }
 
     private function throwFailureIfSet(): void

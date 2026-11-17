@@ -8,6 +8,8 @@ use App\Data\CreatedGeneration;
 use App\Data\CreateGenerationRequest;
 use App\Data\PixelforgeGeneration;
 use App\Data\Pricing;
+use App\Data\ProviderUsage;
+use Carbon\CarbonImmutable;
 
 /**
  * The only way the app talks to Pixelforge (docs/product/pixelforge-api.md).
@@ -22,4 +24,9 @@ interface PixelforgeClient
     public function create(CreateGenerationRequest $request): CreatedGeneration;
 
     public function retrieve(string $id): PixelforgeGeneration;
+
+    /**
+     * What Pixelforge billed per UTC day for the calling key, both dates inclusive.
+     */
+    public function usage(CarbonImmutable $startDate, CarbonImmutable $endDate): ProviderUsage;
 }

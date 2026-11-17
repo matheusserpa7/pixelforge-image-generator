@@ -66,6 +66,14 @@ final readonly class Money
         );
     }
 
+    public function minus(self $other): self
+    {
+        return self::exactly(
+            fn (): int => BigInteger::of($this->nanos)->minus($other->nanos)->toInt(),
+            'Money subtraction overflowed.',
+        );
+    }
+
     /**
      * Multiply a per-token price by a number of tokens.
      */

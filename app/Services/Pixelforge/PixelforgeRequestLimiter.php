@@ -68,6 +68,26 @@ final class PixelforgeRequestLimiter
         }
     }
 
+    /**
+     * Spend one request of the shared per-minute budget without taking a
+     * concurrency slot (for calls that are not generations, like GET /v1/usage).
+     *
+     * @template TReturn
+     *
+     * @param  callable(): TReturn  $callback
+     * @return TReturn
+     */
+    public function attempt(callable $callback): mixed
+    {
+        if (RateLimiter::tooManyAttempts(self::RATE_KEY, self::requestsPerMinute())) {
+            throw new PixelforgeBusy(max(1, RateLimiter::availableIn(self::RATE_KEY)));
+        }
+
+        RateLimiter::hit(self::RATE_KEY, 60);
+
+        return $callback();
+    }
+
     private function acquireConcurrencyLock(): ?Lock
     {
         $limit = self::concurrencyLimit();

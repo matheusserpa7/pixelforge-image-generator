@@ -9,6 +9,7 @@ use App\Services\Pixelforge\HttpPixelforgeClient;
 use App\Services\Pixelforge\PixelforgeClient;
 use App\Services\Pixelforge\PixelforgeException;
 use App\Services\Pixelforge\SamplePricing;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 
@@ -360,4 +361,70 @@ it('sends an idempotency key of 255 characters', function () {
     ));
 
     Http::assertSent(fn ($request) => $request->hasHeader('Idempotency-Key', $key));
+});
+
+it('fetches usage with the date range and bearer auth', function () {
+    Http::fake([
+        'https://pixelforge.test/v1/usage*' => Http::response(
+            '{"object":"usage","start_date":"2026-11-01","end_date":"2026-11-02",'
+            .'"data":[{"date":"2026-11-01","generations":3,"input_text_tokens":41,"cost_usd":"0.169080000"},'
+            .'{"date":"2026-11-02","generations":0,"input_text_tokens":0,"cost_usd":"0.000000000"}],'
+            .'"total":{"generations":3,"input_text_tokens":41,"cost_usd":"0.169080000"}}',
+            200,
+        ),
+    ]);
+
+    $usage = client()->usage(
+        CarbonImmutable::parse('2026-11-01', 'UTC'),
+        CarbonImmutable::parse('2026-11-02', 'UTC'),
+    );
+
+    expect($usage->costByDate['2026-11-01']->nanos)->toBe(169_080_000)
+        ->and($usage->total->nanos)->toBe(169_080_000);
+
+    Http::assertSent(function ($request) {
+        return $request->method() === 'GET'
+            && str_starts_with($request->url(), 'https://pixelforge.test/v1/usage?')
+            && $request['start_date'] === '2026-11-01'
+            && $request['end_date'] === '2026-11-02'
+            && $request->hasHeader('Authorization', 'Bearer test-key');
+    });
+});
+
+it('maps a usage 422 date_range_too_long to a PixelforgeException', function () {
+    Http::fake([
+        'https://pixelforge.test/v1/usage*' => Http::response(
+            '{"error":{"type":"invalid_request_error","code":"date_range_too_long","message":"Too long.","param":null}}',
+            422,
+        ),
+    ]);
+
+    try {
+        client()->usage(CarbonImmutable::parse('2026-01-01', 'UTC'), CarbonImmutable::parse('2026-11-01', 'UTC'));
+        test()->fail('Expected PixelforgeException.');
+    } catch (PixelforgeException $exception) {
+        expect($exception->status)->toBe(422)->and($exception->errorCode)->toBe('date_range_too_long');
+    }
+});
+
+it('maps a usage 5xx to a retryable PixelforgeException', function () {
+    Http::fake(['https://pixelforge.test/v1/usage*' => Http::response('', 503)]);
+
+    try {
+        client()->usage(CarbonImmutable::parse('2026-11-01', 'UTC'), CarbonImmutable::parse('2026-11-02', 'UTC'));
+        test()->fail('Expected PixelforgeException.');
+    } catch (PixelforgeException $exception) {
+        expect($exception->status)->toBe(503)->and($exception->retryable)->toBeTrue();
+    }
+});
+
+it('rejects a malformed usage body as an invalid response', function () {
+    Http::fake(['https://pixelforge.test/v1/usage*' => Http::response('{"object":"usage"}', 200)]);
+
+    try {
+        client()->usage(CarbonImmutable::parse('2026-11-01', 'UTC'), CarbonImmutable::parse('2026-11-02', 'UTC'));
+        test()->fail('Expected PixelforgeException.');
+    } catch (PixelforgeException $exception) {
+        expect($exception->errorCode)->toBe('invalid_response');
+    }
 });

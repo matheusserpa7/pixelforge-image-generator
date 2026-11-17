@@ -8,6 +8,7 @@ use App\Data\CreateGenerationRequest;
 use App\Data\GenerationRates;
 use App\Data\PixelforgeGeneration;
 use App\Data\Pricing;
+use App\Data\ProviderUsage;
 use App\Data\TokenUsage;
 use App\Enums\GenerationStatus;
 use App\Jobs\SubmitGeneration;
@@ -20,6 +21,7 @@ use App\Services\Pixelforge\PixelforgeException;
 use App\Services\Pixelforge\PixelforgeRequestLimiter;
 use App\Services\Pixelforge\SubmitBackoff;
 use App\Support\Money\Money;
+use Carbon\CarbonImmutable;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -398,6 +400,11 @@ it('leaves an unconfirmed generation queued when the worker dies during the call
         }
 
         public function retrieve(string $id): PixelforgeGeneration
+        {
+            throw new RuntimeException('worker died');
+        }
+
+        public function usage(CarbonImmutable $startDate, CarbonImmutable $endDate): ProviderUsage
         {
             throw new RuntimeException('worker died');
         }

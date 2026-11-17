@@ -44,6 +44,15 @@ describe('arithmetic', function () {
         expect($sum->nanos)->toBe(4_000);
     });
 
+    it('subtracts amounts, including to a negative result', function () {
+        expect(Money::ofNanos(4_000)->minus(Money::ofNanos(1_500))->nanos)->toBe(2_500)
+            ->and(Money::ofNanos(1_500)->minus(Money::ofNanos(4_000))->nanos)->toBe(-2_500);
+    });
+
+    it('fails instead of overflowing on subtraction', function () {
+        Money::ofNanos(PHP_INT_MIN)->minus(Money::ofNanos(1));
+    })->throws(InvalidArgumentException::class);
+
     it('multiplies a per-token price by a token count', function () {
         $cost = Money::perToken('40.00')->times(6_450);
 

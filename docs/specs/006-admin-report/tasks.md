@@ -2,7 +2,7 @@
 
 Status: **approved** · 2026-11-17 · Tech spec: [tech-spec.md](tech-spec.md)
 
-- [ ] **T1. Provider usage in the client.** `PixelforgeClient::usage()`, `ProviderUsage` DTO, HTTP
+- [x] **T1. Provider usage in the client.** `PixelforgeClient::usage()`, `ProviderUsage` DTO, HTTP
       and fake implementations, `PixelforgeRequestLimiter::attempt()`, `Money::minus()`, with their
       unit and `Http::fake` tests. Tech spec: Model and contracts → Client; Report (limiter, `minus`).
       Reviewer: Opus.
