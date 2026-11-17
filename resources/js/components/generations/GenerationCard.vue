@@ -1,12 +1,18 @@
 <script setup lang="ts">
+import { ImageOff, RotateCcw } from '@lucide/vue';
+import { useNow } from '@vueuse/core';
 import { computed, ref, watch } from 'vue';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import type { Generation } from '@/types';
 
 const props = defineProps<{ generation: Generation }>();
 
+defineEmits<{ reuse: [generation: Generation] }>();
+
 const imageFailed = ref(false);
+const now = useNow({ interval: 30_000 });
 
 watch(
     () => props.generation.image_url,
@@ -29,19 +35,35 @@ const statusVariants = {
     failed: 'destructive',
 } as const;
 
-const aspectRatio = computed(() => {
-    const [width, height] = props.generation.size.split('x');
+const dimensions = computed(() => {
+    const [width, height] = props.generation.size.split('x').map(Number);
 
-    return width && height ? `${width} / ${height}` : '1 / 1';
+    return width && height ? { width, height } : { width: 1, height: 1 };
 });
+
+const aspectRatio = computed(
+    () => `${dimensions.value.width} / ${dimensions.value.height}`,
+);
 
 const sizeLabel = computed(() => props.generation.size.replace('x', '×'));
 
 const createdAt = computed(() => new Date(props.generation.created_at));
 
+const absoluteTime = computed(() =>
+    new Intl.DateTimeFormat(document.documentElement.lang || 'en', {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+    }).format(createdAt.value),
+);
+
 const relativeTime = computed(() => {
-    const seconds = Math.round((createdAt.value.getTime() - Date.now()) / 1000);
-    const formatter = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
+    const seconds = Math.round(
+        (createdAt.value.getTime() - now.value.getTime()) / 1000,
+    );
+    const formatter = new Intl.RelativeTimeFormat(
+        document.documentElement.lang || 'en',
+        { numeric: 'auto' },
+    );
     const units: [Intl.RelativeTimeFormatUnit, number][] = [
         ['day', 86400],
         ['hour', 3600],
@@ -54,7 +76,7 @@ const relativeTime = computed(() => {
         }
     }
 
-    return formatter.format(seconds, 'second');
+    return 'just now';
 });
 
 const referencesLabel = computed(() => {
@@ -63,12 +85,14 @@ const referencesLabel = computed(() => {
     return `${count} ${count === 1 ? 'reference' : 'references'}`;
 });
 
+const isFailed = computed(() => props.generation.status === 'failed');
+
 const showImage = computed(
     () => props.generation.image_url !== null && !imageFailed.value,
 );
 
 const placeholder = computed(() => {
-    if (props.generation.status === 'failed') {
+    if (isFailed.value) {
         return 'No image';
     }
 
@@ -86,27 +110,67 @@ const placeholder = computed(() => {
 
 <template>
     <article class="flex flex-col overflow-hidden rounded-xl border bg-card">
-        <div
-            class="flex items-center justify-center bg-muted text-sm text-muted-foreground"
+        <a
+            v-if="showImage"
+            :href="generation.image_url ?? undefined"
+            target="_blank"
+            rel="noopener"
+            class="block bg-muted focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none focus-visible:ring-inset"
             :style="{ aspectRatio }"
+            aria-label="Open full-size image in a new tab"
         >
             <img
-                v-if="showImage"
                 :src="generation.image_url ?? undefined"
                 :alt="generation.prompt"
+                :width="dimensions.width"
+                :height="dimensions.height"
                 loading="lazy"
+                decoding="async"
                 class="size-full object-cover"
                 @error="imageFailed = true"
             />
-            <span v-else-if="placeholder">{{ placeholder }}</span>
-            <Spinner v-else class="size-6" />
+        </a>
+        <div
+            v-else-if="isFailed"
+            class="flex h-24 items-center justify-center gap-2 bg-muted text-sm text-muted-foreground"
+        >
+            <ImageOff class="size-4" aria-hidden="true" />
+            {{ placeholder }}
+        </div>
+        <div
+            v-else
+            class="flex flex-col items-center justify-center gap-2 bg-muted text-sm text-muted-foreground"
+            :style="{ aspectRatio }"
+        >
+            <template v-if="placeholder">
+                <ImageOff class="size-5" aria-hidden="true" />
+                {{ placeholder }}
+            </template>
+            <Spinner v-else class="size-6" aria-label="Generating image" />
         </div>
 
         <div class="flex flex-1 flex-col gap-2 p-4 text-sm">
             <div class="flex items-center justify-between gap-2">
-                <Badge :variant="statusVariants[generation.status]">
-                    {{ statusLabels[generation.status] }}
-                </Badge>
+                <div aria-live="polite">
+                    <Badge :variant="statusVariants[generation.status]">
+                        <Spinner
+                            v-if="!generation.is_final"
+                            class="size-3"
+                            aria-hidden="true"
+                        />
+                        {{ statusLabels[generation.status] }}
+                    </Badge>
+                </div>
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    class="-my-1 -mr-2 h-7 shrink-0 px-2 text-xs"
+                    @click="$emit('reuse', generation)"
+                >
+                    <RotateCcw aria-hidden="true" />
+                    Reuse prompt
+                </Button>
             </div>
 
             <p
@@ -121,14 +185,11 @@ const placeholder = computed(() => {
             >
                 Generating, usually 5 to 30 seconds.
             </p>
-            <p
-                v-else-if="generation.status === 'failed'"
-                class="text-muted-foreground"
-            >
-                {{ generation.error_message }} No charge.
+            <p v-else-if="isFailed" class="text-muted-foreground">
+                {{ generation.error_message ?? 'The generation failed.' }}
             </p>
 
-            <div>
+            <div class="tabular-nums">
                 <template
                     v-if="
                         generation.status === 'succeeded' && generation.charge
@@ -147,7 +208,7 @@ const placeholder = computed(() => {
                         }}</span>
                     </div>
                 </template>
-                <template v-else-if="generation.status === 'failed'">
+                <template v-else-if="isFailed">
                     <div class="font-medium">No charge</div>
                 </template>
                 <template v-else>
@@ -164,18 +225,16 @@ const placeholder = computed(() => {
                 </template>
             </div>
 
-            <p class="line-clamp-3" :title="generation.prompt">
+            <p class="line-clamp-3 wrap-anywhere" :title="generation.prompt">
                 {{ generation.prompt }}
             </p>
 
             <p class="mt-auto text-xs text-muted-foreground">
                 {{ sizeLabel }} · {{ generation.quality }} ·
                 {{ referencesLabel }} ·
-                <time
-                    :datetime="generation.created_at"
-                    :title="createdAt.toLocaleString()"
-                    >{{ relativeTime }}</time
-                >
+                <time :datetime="generation.created_at" :title="absoluteTime">{{
+                    relativeTime
+                }}</time>
             </p>
         </div>
     </article>

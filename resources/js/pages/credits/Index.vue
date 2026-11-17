@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { Head, useForm } from '@inertiajs/vue3';
+import { ref } from 'vue';
 import { Button } from '@/components/ui/button';
+import { Spinner } from '@/components/ui/spinner';
 import {
     Card,
     CardContent,
@@ -23,19 +25,36 @@ const form = useForm({
     idempotency_key: props.purchaseKey,
 });
 
+const buyingPack = ref<string | null>(null);
+
 function buy(pack: string): void {
+    buyingPack.value = pack;
+
     form.transform(() => ({
         pack,
         idempotency_key: props.purchaseKey,
-    })).post(purchase.url(), { preserveScroll: true });
+    })).post(purchase.url(), {
+        preserveScroll: true,
+        onFinish: () => {
+            buyingPack.value = null;
+        },
+    });
 }
 
 function kindLabel(kind: CreditPurchaseRow['kind']): string {
     return kind === 'opening_balance' ? 'Opening balance' : 'Purchase';
 }
 
+const dateFormatter = new Intl.DateTimeFormat(
+    document.documentElement.lang || 'en',
+    {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+    },
+);
+
 function formatDate(value: string | null): string {
-    return value === null ? '' : new Date(value).toLocaleString();
+    return value === null ? '' : dateFormatter.format(new Date(value));
 }
 
 defineOptions({
@@ -49,7 +68,9 @@ defineOptions({
     <Head title="Credits" />
 
     <div class="flex flex-col gap-6 p-4">
-        <div class="grid gap-4 sm:grid-cols-3">
+        <h1 class="sr-only">Credits</h1>
+
+        <div class="grid gap-4 tabular-nums sm:grid-cols-3">
             <Card>
                 <CardHeader>
                     <CardDescription>Available</CardDescription>
@@ -104,12 +125,14 @@ defineOptions({
                         :disabled="form.processing"
                         @click="buy(pack.value)"
                     >
+                        <Spinner v-if="buyingPack === pack.value" />
                         Buy {{ pack.label }}
                     </Button>
                 </div>
                 <p
                     v-if="form.errors.pack || form.errors.idempotency_key"
-                    class="text-sm text-destructive"
+                    class="text-sm text-red-700 dark:text-red-400"
+                    role="alert"
                 >
                     {{ form.errors.pack ?? form.errors.idempotency_key }}
                 </p>
@@ -127,12 +150,14 @@ defineOptions({
                 >
                     No purchases yet.
                 </p>
-                <table v-else class="w-full text-left text-sm">
+                <table v-else class="w-full text-left text-sm tabular-nums">
                     <thead class="text-muted-foreground">
                         <tr>
-                            <th class="py-2 font-medium">Date</th>
-                            <th class="py-2 font-medium">Kind</th>
-                            <th class="py-2 text-right font-medium">Amount</th>
+                            <th scope="col" class="py-2 font-medium">Date</th>
+                            <th scope="col" class="py-2 font-medium">Kind</th>
+                            <th scope="col" class="py-2 text-right font-medium">
+                                Amount
+                            </th>
                         </tr>
                     </thead>
                     <tbody>

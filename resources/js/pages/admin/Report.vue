@@ -5,6 +5,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Spinner } from '@/components/ui/spinner';
 import { Label } from '@/components/ui/label';
 import { report } from '@/routes/admin';
 import type { ReportDay, ReportTotals, ReportUser } from '@/types';
@@ -19,6 +20,7 @@ const props = defineProps<{
 }>();
 
 const start = ref(props.range.start);
+const applying = ref(false);
 const end = ref(props.range.end);
 
 const daysNewestFirst = computed(() => [...props.days].reverse());
@@ -30,7 +32,15 @@ function apply(): void {
     router.get(
         report.url(),
         { start: start.value, end: end.value },
-        { preserveScroll: true },
+        {
+            preserveScroll: true,
+            onStart: () => {
+                applying.value = true;
+            },
+            onFinish: () => {
+                applying.value = false;
+            },
+        },
     );
 }
 
@@ -45,22 +55,45 @@ defineOptions({
     <Head title="Report" />
 
     <div class="flex flex-col gap-6 p-4">
+        <h1 class="sr-only">Report</h1>
+
         <form class="flex flex-wrap items-end gap-4" @submit.prevent="apply">
             <div class="grid gap-2">
                 <Label for="report-start">Start (UTC)</Label>
-                <Input id="report-start" v-model="start" type="date" />
-                <p v-if="errors?.start" class="text-sm text-destructive">
+                <Input
+                    id="report-start"
+                    v-model="start"
+                    type="date"
+                    name="start"
+                    :aria-invalid="errors?.start ? true : undefined"
+                />
+                <p
+                    v-if="errors?.start"
+                    class="text-sm text-red-700 dark:text-red-400"
+                >
                     {{ errors.start }}
                 </p>
             </div>
             <div class="grid gap-2">
                 <Label for="report-end">End (UTC)</Label>
-                <Input id="report-end" v-model="end" type="date" />
-                <p v-if="errors?.end" class="text-sm text-destructive">
+                <Input
+                    id="report-end"
+                    v-model="end"
+                    type="date"
+                    name="end"
+                    :aria-invalid="errors?.end ? true : undefined"
+                />
+                <p
+                    v-if="errors?.end"
+                    class="text-sm text-red-700 dark:text-red-400"
+                >
                     {{ errors.end }}
                 </p>
             </div>
-            <Button type="submit">Apply</Button>
+            <Button type="submit" :disabled="applying">
+                <Spinner v-if="applying" />
+                Apply range
+            </Button>
         </form>
 
         <Alert v-if="!providerUsageAvailable">
@@ -93,7 +126,7 @@ defineOptions({
             </AlertDescription>
         </Alert>
 
-        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <div class="grid gap-4 tabular-nums sm:grid-cols-2 lg:grid-cols-5">
             <Card>
                 <CardHeader>
                     <CardTitle class="text-sm font-medium"
@@ -157,26 +190,46 @@ defineOptions({
         <section class="flex flex-col gap-2">
             <h2 class="text-lg font-semibold">Per day</h2>
             <div class="overflow-x-auto rounded-md border">
-                <table class="w-full text-sm">
+                <table class="w-full text-sm tabular-nums">
                     <thead class="bg-muted/50 text-left">
                         <tr>
-                            <th class="px-3 py-2 font-medium">Date</th>
-                            <th class="px-3 py-2 text-right font-medium">
+                            <th scope="col" class="px-3 py-2 font-medium">
+                                Date
+                            </th>
+                            <th
+                                scope="col"
+                                class="px-3 py-2 text-right font-medium"
+                            >
                                 Generations
                             </th>
-                            <th class="px-3 py-2 text-right font-medium">
+                            <th
+                                scope="col"
+                                class="px-3 py-2 text-right font-medium"
+                            >
                                 Charged
                             </th>
-                            <th class="px-3 py-2 text-right font-medium">
+                            <th
+                                scope="col"
+                                class="px-3 py-2 text-right font-medium"
+                            >
                                 Provider cost
                             </th>
-                            <th class="px-3 py-2 text-right font-medium">
+                            <th
+                                scope="col"
+                                class="px-3 py-2 text-right font-medium"
+                            >
                                 Profit
                             </th>
-                            <th class="px-3 py-2 text-right font-medium">
+                            <th
+                                scope="col"
+                                class="px-3 py-2 text-right font-medium"
+                            >
                                 Pixelforge cost
                             </th>
-                            <th class="px-3 py-2 text-right font-medium">
+                            <th
+                                scope="col"
+                                class="px-3 py-2 text-right font-medium"
+                            >
                                 Difference
                             </th>
                         </tr>
@@ -248,20 +301,34 @@ defineOptions({
                 No charges in this range.
             </p>
             <div v-else class="overflow-x-auto rounded-md border">
-                <table class="w-full text-sm">
+                <table class="w-full text-sm tabular-nums">
                     <thead class="bg-muted/50 text-left">
                         <tr>
-                            <th class="px-3 py-2 font-medium">User</th>
-                            <th class="px-3 py-2 text-right font-medium">
+                            <th scope="col" class="px-3 py-2 font-medium">
+                                User
+                            </th>
+                            <th
+                                scope="col"
+                                class="px-3 py-2 text-right font-medium"
+                            >
                                 Generations
                             </th>
-                            <th class="px-3 py-2 text-right font-medium">
+                            <th
+                                scope="col"
+                                class="px-3 py-2 text-right font-medium"
+                            >
                                 Charged
                             </th>
-                            <th class="px-3 py-2 text-right font-medium">
+                            <th
+                                scope="col"
+                                class="px-3 py-2 text-right font-medium"
+                            >
                                 Provider cost
                             </th>
-                            <th class="px-3 py-2 text-right font-medium">
+                            <th
+                                scope="col"
+                                class="px-3 py-2 text-right font-medium"
+                            >
                                 Profit
                             </th>
                         </tr>
