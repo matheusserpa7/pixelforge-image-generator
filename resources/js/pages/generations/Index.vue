@@ -15,9 +15,10 @@ const props = defineProps<{
 
 const generateForm = ref<InstanceType<typeof GenerateForm> | null>(null);
 
+// Credits ride along: a finishing generation releases its hold, which the sidebar balance shows.
 const { start, stop } = usePoll(
     3000,
-    { only: ['generations'] },
+    { only: ['generations', 'credits'] },
     { autoStart: false },
 );
 
