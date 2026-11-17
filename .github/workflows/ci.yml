@@ -73,6 +73,11 @@ jobs:
       - name: Larastan
         run: vendor/bin/phpstan analyse --memory-limit=1G --no-progress
 
+      # Service containers take no server flags, so this mirrors `--log-bin-trust-function-creators=1`
+      # from the compose files: without it the app user cannot create the append-only triggers.
+      - name: Allow trigger creation
+        run: mysql -h 127.0.0.1 -uroot -proot -e "SET GLOBAL log_bin_trust_function_creators = 1"
+
       - name: Pest
         run: vendor/bin/pest
 

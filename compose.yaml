@@ -76,6 +76,7 @@ services:
 
     mysql:
         image: mysql:8.4.13
+        command: ['--log-bin-trust-function-creators=1']
         environment:
             MYSQL_DATABASE: '${DB_DATABASE:-pixelforge}'
             MYSQL_USER: '${DB_USERNAME:-pixelforge}'

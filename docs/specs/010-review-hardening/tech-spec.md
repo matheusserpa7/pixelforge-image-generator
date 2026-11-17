@@ -226,7 +226,21 @@ Expose it through `AdminReportController` props as `stuck`. It does not depend o
 
 ### T4. Append-only in the database
 
-Migration C only. Keep the model guards: they give a clear exception before the query.
+Migration C, plus the MySQL flag it needs. Keep the model guards: they give a clear exception before
+the query.
+
+The privilege check failed in dev: `CREATE TRIGGER` as the app user returns error 1419 ("You do not
+have the SUPER privilege and binary logging is enabled"). The maintainer chose the server flag:
+
+- Add `command: ['--log-bin-trust-function-creators=1']` to the `mysql` service in both `compose.yaml`
+  and `compose.prod.yaml`. Binary logging stays on. Change nothing else in those services.
+- In dev, recreate only the MySQL container (`docker compose up -d mysql`). Its data stays in the
+  `mysql` volume. Check that `SELECT @@log_bin_trust_function_creators` returns `1` before running the
+  migration against the dev and `testing` databases. Never use `migrate:fresh`.
+- Production picks the flag up on the next `make deploy`, which recreates the container. The closing
+  note to the maintainer must say so.
+- CI runs MySQL as a GitHub Actions service container, which takes no server flags. A step before
+  Pest runs `SET GLOBAL log_bin_trust_function_creators = 1` as root, which has the same effect.
 
 ### T5. Clearer states and errors
 
@@ -277,7 +291,8 @@ generation instead.
 - **Trigger privilege.** With binary logging on (the MySQL 8.4 default), `CREATE TRIGGER` may require
   `SUPER` or `log_bin_trust_function_creators=1` for the app user. Check it in dev, in `testing` and
   against the production compose before writing T4. If the app user cannot create triggers, **stop and
-  ask**. Do not grant privileges or change the MySQL command on your own.
+  ask**. Do not grant privileges or change the MySQL command on your own. Resolved: it failed, and the
+  maintainer chose `--log-bin-trust-function-creators=1` (see Behaviour in code, T4).
 - **Production env.** If the production `.env` sets `BILLING_PRICING_CACHE_SECONDS=3600` explicitly, the
   new default does not apply. The closing note to the maintainer must say so.
 - **A stuck generation keeps its hold.** That is deliberate: the provider may bill it. The report makes

@@ -21,9 +21,10 @@ Precondition: specs 000 to 009 are `implemented`. The tasks do not edit `docs/`,
       hits before it checks, `SubmitGeneration` treats `429 rate_limit_exceeded` like concurrency, every
       wait path touches `updated_at`, and the T3 tests. Tech spec: Behaviour in code (T3), Tests (T3).
       Reviewer: Opus.
-- [ ] **T4. Append-only in the database.** Check the trigger privilege first (see Risks) and stop if
-      it is missing. Then Migration C and the T4 tests. Tech spec: Model and contracts (Migration C),
-      Behaviour in code (T4), Tests (T4), Risks. Reviewer: Opus.
+- [x] **T4. Append-only in the database.** The `--log-bin-trust-function-creators=1` flag on the
+      MySQL service in both compose files (privilege check already failed, maintainer chose the flag),
+      the dev MySQL container recreated, Migration C and the T4 tests. Tech spec: Model and contracts
+      (Migration C), Behaviour in code (T4), Tests (T4), Risks. Reviewer: Opus.
 - [ ] **T5. Clearer states and errors.** `awaiting_confirmation` in the resource and the TS type, the
       confirming copy in `GenerationCard.vue`, "Try again." on transient failure messages, the health
       body without details, and the T5 tests. Tech spec: Model and contracts (`GenerationResource`),

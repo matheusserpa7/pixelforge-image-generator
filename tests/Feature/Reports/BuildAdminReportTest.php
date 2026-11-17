@@ -7,7 +7,6 @@ use App\Data\AdminReport;
 use App\Data\ProviderUsage;
 use App\Enums\GenerationStatus;
 use App\Models\Generation;
-use App\Models\LedgerEntry;
 use App\Models\User;
 use App\Services\Pixelforge\FakePixelforgeClient;
 use App\Services\Pixelforge\PixelforgeClient;
@@ -47,17 +46,14 @@ function chargedGeneration(?User $user, string $completedAt, int $providerNanos,
         'provider_completed_at' => $completedAt,
     ]);
 
-    $entry = LedgerEntry::query()->create([
+    DB::table('ledger_entries')->insert([
         'generation_id' => $generation->id,
         'user_id' => $user?->id,
         'provider_cost_nanos' => $providerNanos,
         'charge_nanos' => $chargeNanos,
         'markup_percent' => '25',
+        'created_at' => $ledgerAt ?? now()->toDateTimeString(),
     ]);
-
-    if ($ledgerAt !== null) {
-        DB::table('ledger_entries')->where('id', $entry->id)->update(['created_at' => $ledgerAt]);
-    }
 
     return $generation;
 }
