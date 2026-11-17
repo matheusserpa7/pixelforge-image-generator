@@ -1,6 +1,6 @@
 # 006 Admin report: tech spec
 
-Status: **approved** · 2026-11-17 · PRD: [prd.md](prd.md)
+Status: **implemented** · 2026-11-17 · PRD: [prd.md](prd.md)
 
 ## Technical context
 

@@ -54,6 +54,9 @@ The step-by-step procedure is the `sdd` skill (`.claude/skills/sdd/SKILL.md`).
 14. Production runs on one VPS behind its shared edge proxy, which terminates TLS. The web service is
     `pixelforge-app` on the `edge` network (never `app`), publishes no host port, and ships with
     `make deploy`. ADR 0022.
+15. The admin report buckets ledger money by the UTC day of `provider_completed_at` and compares
+    provider cost with `GET /v1/usage` exactly; usage is cached 60 s and spends the shared minute
+    budget. ADR 0023.
 
 ## Code conventions
 

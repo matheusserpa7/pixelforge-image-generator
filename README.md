@@ -9,13 +9,14 @@ This is a take-home assessment for PromptEdit. The brief is summarised in
 [docs/product/overview.md](docs/product/overview.md) and the API in
 [docs/product/pixelforge-api.md](docs/product/pixelforge-api.md).
 
-> **Status:** specs 000 to 005, 008 and 009 done, deployed at
+> **Status:** specs 000 to 006, 008 and 009 done, deployed at
 > **https://pixelforge.matheusserpa.online**. A signed-in user sees the estimate and maximum before
 > submitting, and follows each generation live in their history with its actual charge and image. A
 > job sends it to Pixelforge under the provider's limits, and a submission the provider may have
 > accepted is never failed locally. Signed webhooks, deduplicated and applied in any order, plus a
 > polling safety net, bring it to its final state, a success is charged once, and its image is copied
-> to our storage. The admin report is next, see the [roadmap](docs/roadmap.md).
+> to our storage. Admins get a report of charged, provider cost and profit per day and per user,
+> reconciled to the nano with `GET /v1/usage`. Credit balances are next, see the [roadmap](docs/roadmap.md).
 
 ## Run it
 
@@ -34,6 +35,7 @@ the migrations. Then open http://localhost:8080 and register an account.
 | http://localhost:8080/health   | MySQL and Redis check (JSON)         |
 | http://localhost:8080/horizon  | Queues (admins only)                 |
 | http://localhost:8080/pulse    | Metrics (admins only)                |
+| http://localhost:8080/admin/report | Money report (admins only)       |
 
 Port 8080 taken? Set `APP_PORT` in `.env`. `make fresh` seeds `test@example.com` and an admin,
 `admin@example.com`, both with the password `password`.
@@ -92,6 +94,7 @@ app/Jobs, app/Policies, app/Http/Controllers
 | [Inertia polling, no WebSockets](docs/adr/0015-live-status-via-inertia-polling.md)             | Live status without extra infrastructure.                        |
 | [FrankenPHP image for dev and prod](docs/adr/0016-docker-frankenphp.md)                        | One command locally, the same image on the server.               |
 | [Single VPS behind the edge proxy](docs/adr/0022-single-vps-deployment-behind-edge-proxy.md)    | One-command deploys next to other sites, TLS by the shared proxy. |
+| [Report by provider completion day](docs/adr/0023-admin-report-by-provider-completion-day.md) | Daily provider cost matches `GET /v1/usage` to the nano.         |
 
 All decisions: [docs/adr](docs/adr/README.md).
 
