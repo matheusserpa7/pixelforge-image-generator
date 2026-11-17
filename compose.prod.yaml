@@ -36,15 +36,15 @@ x-app: &app
                 memory: 512M
 
 services:
-    app:
+    # The service name is its DNS name on every network it joins, including the shared `edge`
+    # network, where other projects reach their own PHP as `app`: never name this service `app`.
+    pixelforge-app:
         <<: *app
         environment:
             RUN_MIGRATIONS: 'true'
         networks:
             default: {}
-            edge:
-                aliases:
-                    - pixelforge-app
+            edge: {}
 
     horizon:
         <<: *app
@@ -54,7 +54,7 @@ services:
                 condition: service_healthy
             redis:
                 condition: service_healthy
-            app:
+            pixelforge-app:
                 condition: service_healthy
         healthcheck:
             test: ['CMD', 'php', 'artisan', 'horizon:status']
@@ -71,7 +71,7 @@ services:
                 condition: service_healthy
             redis:
                 condition: service_healthy
-            app:
+            pixelforge-app:
                 condition: service_healthy
         healthcheck:
             disable: true

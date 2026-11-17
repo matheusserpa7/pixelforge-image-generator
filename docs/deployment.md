@@ -8,8 +8,8 @@ URL: `https://pixelforge.matheusserpa.online`.
 browser --HTTPS--> edge nginx --HTTP--> pixelforge-app:8080 (network "edge")
 ```
 
-The app publishes no host port. The edge proxy reaches the web container by its alias
-`pixelforge-app` on the external Docker network `edge`; Horizon, the scheduler, MySQL and Redis stay
+The app publishes no host port. The edge proxy reaches the web container as
+`pixelforge-app` (the Compose service name, which must stay unique on that network) on the external Docker network `edge`; Horizon, the scheduler, MySQL and Redis stay
 on the project's own network.
 
 ## 1. Requirements
@@ -31,6 +31,14 @@ on the project's own network.
 Changes on the VPS, outside this repository. The edge files live in `/home/deploy/edge`. Take a copy
 of `nginx/default.conf` first, and always run `nginx -t` before reloading: a failed test leaves the
 running config in place, while a bad config would take every site down.
+
+`default.conf` is bind-mounted into the container as a single file, so edit it **in place** (an
+editor that rewrites the same file, or `cat new.conf > default.conf`). Tools that replace the file
+(`sed -i`, `mv`) give it a new inode: the container keeps seeing the old file, `nginx -t` passes on
+it and the reload changes nothing. If that happens, test the new file in a throwaway container
+(`docker run --rm -v /home/deploy/edge/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro -v
+/home/deploy/edge/certbot/conf:/etc/letsencrypt:ro nginx:1.28.3-alpine nginx -t`) and then
+`docker restart edge-nginx-1` (about a second of downtime for every site).
 
 1. In `nginx/default.conf`, add `pixelforge.matheusserpa.online` to the `server_name` list of the
    port-80 block that serves `/.well-known/acme-challenge/` from `/var/www/certbot`, then:
@@ -78,13 +86,18 @@ running config in place, while a bad config would take every site down.
            proxy_set_header X-Forwarded-Proto https;
            proxy_pass $pixelforge;
            proxy_read_timeout 60s;
+           proxy_buffer_size 32k;
+           proxy_buffers 8 32k;
+           proxy_busy_buffers_size 64k;
        }
    }
    ```
 
    `proxy_pass $pixelforge` relies on the `resolver 127.0.0.11` already declared in that file (Docker's
    DNS); with it, the `set $var` pattern lets nginx start even when the app is down, and it answers
-   `502` until the app is up. Check the `resolver` line is there before reloading.
+   `502` until the app is up. Check the `resolver` line is there before reloading. The larger proxy
+   buffers are required: Laravel's `Link` preload headers plus session cookies exceed nginx's default
+   header buffer (`upstream sent too big header`, `502`).
 
 ## 4. First install
 
@@ -120,14 +133,14 @@ Then, from the maintainer's machine (see section 6):
 make deploy DEPLOY_HOST=<ssh destination>
 ```
 
-or on the server: `docker compose -f compose.prod.yaml up -d --build --wait`.
+or on the server: `docker compose -f compose.prod.yaml up -d --build --wait --remove-orphans`.
 
 ## 5. Admin
 
 Register in the browser, then promote the account:
 
 ```sh
-docker compose -f compose.prod.yaml exec app php artisan users:make-admin <email>
+docker compose -f compose.prod.yaml exec pixelforge-app php artisan users:make-admin <email>
 ```
 
 Admins can open `/horizon` and `/pulse`; regular users get `403`. No account is seeded in production.
@@ -150,7 +163,7 @@ gracefully (up to 60 s).
 
 - Health: `curl https://<domain>/health`
 - Status: `docker compose -f compose.prod.yaml ps`
-- Logs: `docker compose -f compose.prod.yaml logs -f app horizon` (rotated: 5 files of 10 MB each)
+- Logs: `docker compose -f compose.prod.yaml logs -f pixelforge-app horizon` (rotated: 5 files of 10 MB each)
 - Dashboards: `https://<domain>/horizon` and `https://<domain>/pulse` (admin only)
 - Certificate: issued and renewed by the edge proxy's `renew.sh`, not by this stack.
 - Data lives in named volumes: `mysql`, `redis` and `storage` (generated images).

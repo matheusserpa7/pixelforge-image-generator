@@ -68,10 +68,14 @@ commands table gets `make deploy`, roadmap 005 `Done` and 006 `Next`, README sta
    `pixelforge.matheusserpa.online`, redirects HTTP to HTTPS, and forwards to
    `http://pixelforge-app:8080` over the `edge` network. FrankenPHP keeps its plain `:8080` (the image
    default); the app publishes no port on the host.
-2. **The app joins the `edge` network** (external, name `${EDGE_NETWORK:-edge}`) with the alias
-   `pixelforge-app`, unique on that network (other projects use `app` and `nginx` service names).
-   Only the `app` service joins it; Horizon, the scheduler, MySQL and Redis stay on the project's
-   default network.
+2. **The web service joins the `edge` network** (external, name `${EDGE_NETWORK:-edge}`) as
+   `pixelforge-app`, unique on that network. Only that service joins it; Horizon, the scheduler, MySQL
+   and Redis stay on the project's default network. **Its Compose service is named `pixelforge-app`
+   in `compose.prod.yaml`, not `app`**: Compose registers the service name as a DNS name on every
+   network the service joins, and other projects' nginx containers on `edge` reach their own PHP as
+   `app:9000`. On the first deploy (2026-11-17) the service was still `app`; hoop-ia's nginx resolved
+   `app` to this container and returned `502` for about five minutes until the container was
+   reconnected with only the `pixelforge-app` alias. The development `compose.yaml` keeps `app`.
 3. **Its own certificate.** A separate Let's Encrypt certificate named
    `pixelforge.matheusserpa.online`, issued by the same certbot webroot flow. The existing
    `matheusserpa.online` certificate is not touched, so the other sites cannot break. `renew.sh`
@@ -83,8 +87,8 @@ commands table gets `make deploy`, roadmap 005 `Done` and 006 `Next`, README sta
    chain from the right and skips trusted addresses, so a forged header from a client cannot change
    `request()->ip()`, and `X-Forwarded-Proto: https` makes URLs and secure cookies correct.
 5. **Build on the server.** The deploy pulls `main` on the VPS and runs
-   `docker compose -f compose.prod.yaml up -d --build --wait`. No registry.
-6. **Start order.** `horizon` and `scheduler` depend on `app` being `service_healthy`, so they never
+   `docker compose -f compose.prod.yaml up -d --build --wait --remove-orphans`. No registry.
+6. **Start order.** `horizon` and `scheduler` depend on `pixelforge-app` being `service_healthy`, so they never
    run new code against an unmigrated schema.
 7. **Log rotation.** Every service logs with the `json-file` driver, `max-size: 10m`, `max-file: 5`.
 8. **Admins are promoted, never seeded.** `php artisan users:make-admin {email}` promotes an already
@@ -144,10 +148,14 @@ present) and return without creating anything. Development seeds stay as they ar
 ### `compose.prod.yaml`
 
 - Keep from T1: the `x-logging` anchor on every service, and `horizon` / `scheduler` depending on
-  `app: condition: service_healthy` with full `depends_on` maps.
-- `app`: `environment` keeps only `RUN_MIGRATIONS: 'true'` (remove `SERVER_NAME` and
-  `TRUSTED_PROXIES`); no `ports`; volumes back to `storage:/app/storage/app` only; `networks`:
-  `default: {}` and `edge: { aliases: [pixelforge-app] }`.
+  the web service (`condition: service_healthy`) with full `depends_on` maps.
+- The web service is named **`pixelforge-app`** (Decision 2): `environment` keeps only
+  `RUN_MIGRATIONS: 'true'` (remove `SERVER_NAME` and `TRUSTED_PROXIES`); no `ports`; volumes back to
+  `storage:/app/storage/app` only; `networks`: `default: {}` and `edge: {}` (no alias needed, the
+  service name is the DNS name). `horizon` and `scheduler` depend on `pixelforge-app` being healthy.
+  Every runbook command that targets the web container uses `pixelforge-app`
+  (`docker compose -f compose.prod.yaml exec pixelforge-app php artisan ...`), and the header comment
+  of `compose.prod.yaml` says why the name must stay unique on `edge`.
 - Top-level `networks`: `edge: { name: '${EDGE_NETWORK:-edge}', external: true }`.
 - Top-level `volumes`: remove `caddy_data`, `caddy_config`.
 - The header comment explains: served behind the VPS edge proxy (`docs/deployment.md`), the `edge`
@@ -202,12 +210,18 @@ T3. The file is `/home/deploy/edge/nginx/default.conf` (owned by `deploy`). In o
            proxy_set_header X-Forwarded-Proto https;
            proxy_pass $pixelforge;
            proxy_read_timeout 60s;
+           proxy_buffer_size 32k;
+           proxy_buffers 8 32k;
+           proxy_busy_buffers_size 64k;
        }
    }
    ```
 
 The `resolver 127.0.0.11` and `set $var` pattern already in that file let nginx start even when the
-app is down (it answers `502` until the app is up).
+app is down (it answers `502` until the app is up). The larger proxy buffers are needed: Laravel's
+`Link` preload headers plus session cookies exceed nginx's default 4k/8k header buffer, which showed
+up as `upstream sent too big header` (`502`) on `/register` during the first deploy. The file is
+bind-mounted as a single file, so it must be edited in place (see `docs/deployment.md`).
 
 ### `scripts/deploy.sh` (new) and `make deploy`
 
@@ -254,10 +268,10 @@ the three steps of "Edge proxy changes" above.
    `PIXELFORGE_API_KEY`, `PIXELFORGE_WEBHOOK_SECRET`, optional `SENTRY_LARAVEL_DSN`. Then the first
    `make deploy` from the maintainer's machine (or the same compose command on the server).
 4. **Admin**: register in the browser, then
-   `docker compose -f compose.prod.yaml exec app php artisan users:make-admin <email>`.
+   `docker compose -f compose.prod.yaml exec pixelforge-app php artisan users:make-admin <email>`.
 5. **Ship a version**: push to `main`, CI green, `make deploy DEPLOY_HOST=<ssh destination>`. What
    happens during the few seconds of downtime (webhooks retried, reconciliation).
-6. **Operate**: health URL, `docker compose -f compose.prod.yaml ps`, `logs -f app horizon`,
+6. **Operate**: health URL, `docker compose -f compose.prod.yaml ps`, `logs -f pixelforge-app horizon`,
    Horizon and Pulse URLs, where data lives (volumes `mysql`, `redis`, `storage`) and
    that `down -v` destroys it.
 7. **Never in production**: `db:seed`, `migrate:fresh`, `make fresh`.
@@ -305,7 +319,7 @@ optional; the `config` and image checks are required.
 - **Memory on a shared VPS.** Limits add up to ~3 GB; the build (Composer, `npm ci`, Vite) needs
   ~2 GB more while it runs. Check `free -h` in T3; on pressure, build with the stack running is still
   fine because the old containers keep serving until recreated.
-- **Downtime during a deploy.** A few seconds while `app` is recreated. Webhooks are retried by
+- **Downtime during a deploy.** A few seconds while `pixelforge-app` is recreated. Webhooks are retried by
   Pixelforge and reconciliation polls stuck generations; queued jobs wait in Redis (persisted with
   AOF). Horizon stops gracefully (`stop_grace_period: 60s`).
 - **Losing data.** Only `down -v` or deleting volumes loses it; the runbook says so. No backups in

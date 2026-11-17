@@ -21,6 +21,13 @@ Status: **approved** · 2026-11-17 (revised: shared edge proxy) · Tech spec: [t
       the edge server block and the certificate command). Tech spec: Revision; Decisions 1–4;
       `compose.prod.yaml`; `Dockerfile`; `.env.example`; Edge proxy changes; `scripts/deploy.sh`;
       `docs/deployment.md`; Tests (T3 rows). Reviewer: Opus.
+- [x] **T3 fix. Unique web service name on `edge` and runbook updates from the first deploy.**
+      Rename the `compose.prod.yaml` web service to `pixelforge-app` (drop the alias), update
+      `horizon` / `scheduler` `depends_on`, the header comment, every runbook command that targets
+      the web container, the runbook's HTTPS block (proxy buffers), and keep the in-place-edit note
+      already added to `docs/deployment.md` section 3. Smoke: `compose config` shows the service
+      `pixelforge-app` on `default` and `edge` with no `app` service. Tech spec: Decision 2;
+      `compose.prod.yaml`; Edge proxy changes. Reviewer: Opus.
 - [ ] **T4. First deployment, verified live.** Main session with the maintainer, no implementer:
       the maintainer creates the production Pixelforge key and fills `~/pixelforge-studio/.env` on the
       server (secrets never pass through the session); the session clones the repository, runs the
