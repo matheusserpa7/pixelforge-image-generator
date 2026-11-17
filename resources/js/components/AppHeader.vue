@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link, usePage } from '@inertiajs/vue3';
-import { Image, Menu, Search } from '@lucide/vue';
+import { ChartColumn, Image, Menu, Search } from '@lucide/vue';
 import { computed } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
 import AppLogoIcon from '@/components/AppLogoIcon.vue';
@@ -28,6 +28,7 @@ import {
 import UserMenuContent from '@/components/UserMenuContent.vue';
 import { useCurrentUrl } from '@/composables/useCurrentUrl';
 import { getInitials } from '@/composables/useInitials';
+import { report } from '@/routes/admin';
 import { index as generations } from '@/routes/generations';
 import type { BreadcrumbItem, NavItem } from '@/types';
 
@@ -46,13 +47,16 @@ const { isCurrentUrl, whenCurrentUrl } = useCurrentUrl();
 const activeItemStyles =
     'text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100';
 
-const mainNavItems: NavItem[] = [
+const mainNavItems = computed<NavItem[]>(() => [
     {
         title: 'Generations',
         href: generations(),
         icon: Image,
     },
-];
+    ...(auth.value.isAdmin
+        ? [{ title: 'Report', href: report(), icon: ChartColumn }]
+        : []),
+]);
 </script>
 
 <template>

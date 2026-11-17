@@ -47,7 +47,7 @@ it('renders the default 30-day range for admins', function () {
         ->get(route('admin.report'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('admin/Report', false) // page file arrives in T3
+            ->component('admin/Report')
             ->where('range.end', now('UTC')->format('Y-m-d'))
             ->where('range.start', now('UTC')->subDays(29)->format('Y-m-d'))
             ->has('days', 30)
