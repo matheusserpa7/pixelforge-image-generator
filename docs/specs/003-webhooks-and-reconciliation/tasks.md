@@ -9,7 +9,7 @@ Status: **approved** · 2026-11-16 · Tech spec: [tech-spec.md](tech-spec.md)
       `backoff`, `handle` that returns) so the dispatch compiles. Tech spec: Table `webhook_events`,
       `WebhookEvent` model, `WebhookEventOutcome`, `WebhookReceipt`, `WebhookSignature`, Behaviour in
       code (Receive). Reviewer: Opus.
-- [ ] **T2. Process webhook events.** `ProcessWebhookEvent::handle` and
+- [x] **T2. Process webhook events.** `ProcessWebhookEvent::handle` and
       `WebhookEventOutcome::fromSnapshot`. Tech spec: Behaviour in code (Process). Reviewer: Opus.
 - [ ] **T3. Reconciliation.** `reconcile_after_seconds` config and `.env.example` line,
       `ReconcileGenerations`, `ReconcileGenerationsCommand`, the schedule entry, and `PollGeneration`.
