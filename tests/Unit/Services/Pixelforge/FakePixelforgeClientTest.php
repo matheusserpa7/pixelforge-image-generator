@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Data\CreateGenerationRequest;
 use App\Data\PixelforgeGeneration;
+use App\Data\TokenUsage;
 use App\Enums\GenerationStatus;
 use App\Enums\ImageQuality;
 use App\Enums\ImageSize;
@@ -22,6 +23,24 @@ it('returns the published sample pricing by default', function () {
         ->and($pricing->rates->reasoning->nanos)->toBe(12500)
         ->and($pricing->outputTokens['high']['1536x1024'])->toBe(6450)
         ->and($pricing->reasoningTokens['high'])->toBe(['min' => 1000, 'max' => 8000]);
+});
+
+it('honours scripted create status and usage', function () {
+    $client = new FakePixelforgeClient;
+    $client->createStatus = GenerationStatus::Succeeded;
+    $client->createUsage = new TokenUsage(3, 0, 0, 0);
+
+    $created = $client->create(new CreateGenerationRequest(
+        prompt: 'Done',
+        size: ImageSize::Square,
+        quality: ImageQuality::Medium,
+        referenceImages: [],
+        metadata: [],
+        idempotencyKey: 'idem-scripted',
+    ));
+
+    expect($created->generation->status)->toBe(GenerationStatus::Succeeded)
+        ->and($created->generation->usage)->toEqual(new TokenUsage(3, 0, 0, 0));
 });
 
 it('creates then retrieves a generation', function () {

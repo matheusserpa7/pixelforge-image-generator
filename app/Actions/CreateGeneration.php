@@ -7,6 +7,7 @@ namespace App\Actions;
 use App\Enums\GenerationStatus;
 use App\Enums\ImageQuality;
 use App\Enums\ImageSize;
+use App\Jobs\SubmitGeneration;
 use App\Models\Generation;
 use App\Models\User;
 use App\Services\Billing\CostEstimator;
@@ -40,7 +41,7 @@ final class CreateGeneration
         );
 
         return DB::transaction(function () use ($user, $prompt, $size, $quality, $referenceImages, $estimate): Generation {
-            return Generation::query()->create([
+            $generation = Generation::query()->create([
                 'user_id' => $user->id,
                 'status' => GenerationStatus::Queued,
                 'prompt' => $prompt,
@@ -52,6 +53,10 @@ final class CreateGeneration
                 'estimated_charge_nanos' => $estimate->estimatedCharge->nanos,
                 'maximum_charge_nanos' => $estimate->maximumCharge->nanos,
             ]);
+
+            SubmitGeneration::dispatch($generation->id)->afterCommit();
+
+            return $generation;
         });
     }
 }

@@ -13,7 +13,7 @@ Status: **approved** · 2026-11-16 · Tech spec: [tech-spec.md](tech-spec.md)
       `FailGeneration`. Tech spec: Tables (`ledger_entries`), `GenerationStatus::rank`, Stored rates and
       usage, Ledger model, `SnapshotOutcome`, Failure messages, Behaviour in code (Snapshot and charge).
       Reviewer: Opus.
-- [ ] **T3. Rate-limited submit.** `PixelforgeRequestLimiter`, `PixelforgeBusy`, `SubmitBackoff`, the
+- [x] **T3. Rate-limited submit.** `PixelforgeRequestLimiter`, `PixelforgeBusy`, `SubmitBackoff`, the
       config keys and `.env.example` lines, the fake-client hooks, `SubmitGeneration`, and the
       `afterCommit` dispatch inside `CreateGeneration`'s transaction. Tech spec: Limiter and backoff,
       Fake client hooks, Job, Behaviour in code (Submit job, and the dispatch sentence in Create).

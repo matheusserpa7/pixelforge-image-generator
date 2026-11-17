@@ -45,6 +45,10 @@ return [
         // Seconds a webhook signature timestamp may differ from now (docs/adr/0008).
         'webhook_tolerance' => (int) env('PIXELFORGE_WEBHOOK_TOLERANCE', 300),
         'timeout' => (int) env('PIXELFORGE_TIMEOUT', 10),
+        'concurrency_limit' => env('PIXELFORGE_CONCURRENCY_LIMIT', 3),
+        'requests_per_minute' => env('PIXELFORGE_REQUESTS_PER_MINUTE', 60),
+        'max_submit_attempts' => env('PIXELFORGE_MAX_SUBMIT_ATTEMPTS', 5),
+        'concurrency_retry_seconds' => env('PIXELFORGE_CONCURRENCY_RETRY_SECONDS', 5),
     ],
 
 ];

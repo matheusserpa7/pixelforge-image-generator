@@ -6,6 +6,7 @@ use App\Actions\GetCachedPricing;
 use App\Enums\GenerationStatus;
 use App\Enums\ImageQuality;
 use App\Enums\ImageSize;
+use App\Jobs\SubmitGeneration;
 use App\Models\Generation;
 use App\Models\User;
 use App\Services\Pixelforge\FakePixelforgeClient;
@@ -21,6 +22,7 @@ use Illuminate\Support\Str;
 
 beforeEach(function () {
     Http::preventStrayRequests();
+    Queue::fake();
     Cache::forget(GetCachedPricing::CACHE_KEY);
     config(['billing.markup_percent' => '25']);
 });
@@ -182,9 +184,7 @@ it('stores nothing when the pricing cache is empty and pricing cannot be fetched
         ->and($client->created)->toBeEmpty();
 });
 
-it('does not dispatch a submit job', function () {
-    Queue::fake();
-
+it('dispatches a submit job after commit', function () {
     $user = User::factory()->create();
     $this->actingAs($user);
     seedPricingCache();
@@ -192,7 +192,12 @@ it('does not dispatch a submit job', function () {
     $this->post(route('generations.store'), validGenerationPayload())
         ->assertRedirect(route('dashboard'));
 
-    Queue::assertNothingPushed();
+    $generation = Generation::query()->sole();
+
+    Queue::assertPushed(
+        SubmitGeneration::class,
+        fn (SubmitGeneration $job): bool => $job->generationId === $generation->id && $job->afterCommit === true,
+    );
 });
 
 it('scopes generations to the owner and enforces view policy', function () {

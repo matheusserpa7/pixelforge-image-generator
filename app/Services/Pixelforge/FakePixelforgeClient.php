@@ -8,7 +8,9 @@ use App\Data\CreatedGeneration;
 use App\Data\CreateGenerationRequest;
 use App\Data\GenerationRates;
 use App\Data\PixelforgeGeneration;
+use App\Data\PixelforgeGenerationError;
 use App\Data\Pricing;
+use App\Data\TokenUsage;
 use App\Enums\GenerationStatus;
 use Carbon\CarbonImmutable;
 
@@ -30,6 +32,14 @@ final class FakePixelforgeClient implements PixelforgeClient
     public array $generations = [];
 
     public ?PixelforgeException $failure = null;
+
+    public GenerationStatus $createStatus = GenerationStatus::Queued;
+
+    public ?TokenUsage $createUsage = null;
+
+    public ?PixelforgeGenerationError $createError = null;
+
+    public ?GenerationRates $createRates = null;
 
     /**
      * @var array<string, array{canonical: string, id: string}>
@@ -83,9 +93,11 @@ final class FakePixelforgeClient implements PixelforgeClient
         $pricing = $this->pricing();
         $now = CarbonImmutable::now('UTC');
 
+        $rates = $this->createRates ?? $this->copyRates($pricing->rates);
+
         $generation = new PixelforgeGeneration(
             id: 'gen_fake_'.$this->nextId,
-            status: GenerationStatus::Queued,
+            status: $this->createStatus,
             prompt: $request->prompt,
             size: $request->size,
             quality: $request->quality,
@@ -93,9 +105,9 @@ final class FakePixelforgeClient implements PixelforgeClient
             metadata: $request->metadata,
             imageUrl: null,
             imageUrlExpiresAt: null,
-            usage: null,
-            rates: $this->copyRates($pricing->rates),
-            error: null,
+            usage: $this->createUsage,
+            rates: $rates,
+            error: $this->createError,
             createdAt: $now,
             startedAt: null,
             completedAt: null,
