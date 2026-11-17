@@ -90,9 +90,9 @@ throws `PixelforgeBusy` when the minute budget is spent, and catch `PixelforgeBu
   to today UTC, `start` to `end − 29 days`; `start <= end`; span ≤ 92 days inclusive; `end` not after
   today UTC. Validation errors redirect back to the default range with errors (Inertia standard).
 - Controller: validate → action → `Inertia::render('admin/Report', [...])`. Each money value is sent
-  as `{ nanos: int, usd: string (toDecimalString), display: string (format(6)) }`; reuse an existing
-  money serialisation in `app/Http/Resources` if one exists, else add `MoneyResource`-like static
-  helper there. The frontend never does money arithmetic.
+  as `{ amount: string (toDecimalString, nine decimals), display: string (format(4)) }` through the
+  existing `App\Http\Resources\MoneyView`, the same shape the generations pages use. The frontend
+  never does money arithmetic.
 - `HandleInertiaRequests::share` adds `auth.isAdmin` (bool, `Gate::allows('admin')`, false for guests).
 
 ### UI (`resources/js/pages/admin/Report.vue`)
@@ -105,7 +105,7 @@ throws `PixelforgeBusy` when the minute budget is spent, and catch `PixelforgeBu
 - Totals as stat tiles: Generations, Charged, Provider cost, Profit, Pixelforge cost.
 - Per-day table, newest first: Date, Generations, Charged, Provider cost, Profit, Pixelforge cost,
   Difference (blank when matching, highlighted when not). Amounts show `display`; `title` shows
-  `$usd`.
+  the exact `amount`. Highlight a day by `matches === false`, never by a non-zero `display` (a difference under 50,000 nanos displays as `$0.0000`). When the page exists, `AdminReportPageTest` drops the `false` in `->component('admin/Report', false)`.
 - Per-user table: User (name, email below; "Deleted user"), Generations, Charged, Provider cost,
   Profit. Empty state: "No charges in this range."
 

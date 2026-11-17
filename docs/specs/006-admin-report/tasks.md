@@ -6,7 +6,7 @@ Status: **approved** · 2026-11-17 · Tech spec: [tech-spec.md](tech-spec.md)
       and fake implementations, `PixelforgeRequestLimiter::attempt()`, `Money::minus()`, with their
       unit and `Http::fake` tests. Tech spec: Model and contracts → Client; Report (limiter, `minus`).
       Reviewer: Opus.
-- [ ] **T2. Report action and admin route.** `BuildAdminReport`, `AdminReport` DTOs, the cached and
+- [x] **T2. Report action and admin route.** `BuildAdminReport`, `AdminReport` DTOs, the cached and
       budgeted usage call, `AdminReportRequest`, `AdminReportController`, route behind `can:admin`,
       `auth.isAdmin` shared prop, and the action and HTTP feature tests. Tech spec: Report, HTTP,
       Tests. Reviewer: Opus.
