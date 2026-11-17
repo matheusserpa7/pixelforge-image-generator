@@ -4,7 +4,7 @@
 DC   := docker compose
 EXEC := $(DC) exec -T app
 
-.PHONY: up down test lint analyse fix shell fresh
+.PHONY: up down test lint analyse fix shell fresh deploy
 
 up: ## Build and start the dev stack, wait until it is healthy
 	$(DC) up -d --build --wait
@@ -34,3 +34,6 @@ shell: ## Open a shell in the app container
 
 fresh: ## Recreate the database with seed data
 	$(EXEC) php artisan migrate:fresh --seed
+
+deploy: ## Ship origin/main to the server (needs DEPLOY_HOST, see docs/deployment.md)
+	sh scripts/deploy.sh

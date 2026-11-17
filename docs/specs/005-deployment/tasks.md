@@ -8,7 +8,7 @@ Status: **approved** · 2026-11-17 · Tech spec: [tech-spec.md](tech-spec.md)
       `TRUSTED_PROXIES: ''`), the trusted-proxy feature test and the smoke checks. Tech spec: Decisions
       1–4, 6, 7; `config/trustedproxy.php`; `.env.example` additions; `compose.prod.yaml`;
       `Dockerfile`; Tests (T1 rows). Reviewer: Opus.
-- [ ] **T2. Operator tools and runbook.** `users:make-admin`, the `DatabaseSeeder` production guard,
+- [x] **T2. Operator tools and runbook.** `users:make-admin`, the `DatabaseSeeder` production guard,
       their tests, `scripts/deploy.sh`, the `make deploy` target, `.dockerignore`, and
       `docs/deployment.md`. Tech spec: Decisions 5, 8; `users:make-admin` command; `DatabaseSeeder`
       guard; `scripts/deploy.sh` and `make deploy`; `docs/deployment.md`; Tests (T2 rows).

@@ -17,6 +17,12 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        if (app()->isProduction()) {
+            $this->command?->warn('Refusing to seed in production: register, then promote with users:make-admin.');
+
+            return;
+        }
+
         // Local development accounts; the factory password is "password".
         User::factory()->create([
             'name' => 'Test User',
