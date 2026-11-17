@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { Link, usePage } from '@inertiajs/vue3';
+import { Link, router, usePage } from '@inertiajs/vue3';
 import { Activity, ChartColumn, Image, Layers, Wallet } from '@lucide/vue';
-import { computed } from 'vue';
+import { computed, onUnmounted } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
 import NavMain from '@/components/NavMain.vue';
 import NavUser from '@/components/NavUser.vue';
@@ -13,6 +13,7 @@ import {
     SidebarMenu,
     SidebarMenuButton,
     SidebarMenuItem,
+    useSidebar,
 } from '@/components/ui/sidebar';
 import { report } from '@/routes/admin';
 import { index as credits } from '@/routes/credits';
@@ -20,6 +21,10 @@ import { index as generations } from '@/routes/generations';
 import type { NavItem } from '@/types';
 
 const page = usePage();
+const { setOpenMobile } = useSidebar();
+
+// On phones the sidebar is a drawer over the page: close it once a link has navigated.
+onUnmounted(router.on('navigate', () => setOpenMobile(false)));
 
 const mainNavItems = computed<NavItem[]>(() => [
     {
