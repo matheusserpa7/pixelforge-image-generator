@@ -3,7 +3,11 @@
 declare(strict_types=1);
 
 use App\Actions\GetCachedPricing;
+use App\Data\CreatedGeneration;
+use App\Data\CreateGenerationRequest;
 use App\Data\GenerationRates;
+use App\Data\PixelforgeGeneration;
+use App\Data\Pricing;
 use App\Data\TokenUsage;
 use App\Enums\GenerationStatus;
 use App\Jobs\SubmitGeneration;
@@ -14,6 +18,7 @@ use App\Services\Pixelforge\GenerationFailureMessage;
 use App\Services\Pixelforge\PixelforgeClient;
 use App\Services\Pixelforge\PixelforgeException;
 use App\Services\Pixelforge\PixelforgeRequestLimiter;
+use App\Services\Pixelforge\SubmitBackoff;
 use App\Support\Money\Money;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Support\Facades\Cache;
@@ -148,7 +153,7 @@ it('marks the generation failed after the max submit attempts on retryable error
 
 it('fails immediately on daily limit exceeded', function () {
     $client = bindFakePixelforgeClient();
-    $client->failure = PixelforgeException::fromProvider(402, 'daily_limit_exceeded', 'Quota.', null, null);
+    $client->failure = PixelforgeException::fromProvider(429, 'daily_limit_exceeded', 'Quota.', null, null);
 
     $generation = Generation::factory()->create(['submit_attempts' => 0]);
 
@@ -230,7 +235,7 @@ it('releases without counting a wait for a concurrency slot', function () {
     }
 });
 
-it('releases when success is missing usage', function () {
+it('stores the provider id and ends the job when success is missing usage', function () {
     $client = bindFakePixelforgeClient();
     $client->createStatus = GenerationStatus::Succeeded;
     $client->createUsage = null;
@@ -238,33 +243,237 @@ it('releases when success is missing usage', function () {
     $generation = Generation::factory()->create(['submit_attempts' => 0]);
 
     $job = runSubmitJob($generation, fakeQueue: true);
-
     $generation->refresh();
 
     expect($generation->status)->toBe(GenerationStatus::Queued)
-        ->and($generation->provider_id)->not->toBeNull()
-        ->and($job->assertReleased(1))->toBeInstanceOf(SubmitGeneration::class);
+        ->and($generation->provider_id)->toBe('gen_fake_1')
+        ->and($client->created)->toHaveCount(1)
+        ->and(LedgerEntry::query()->count())->toBe(0);
+
+    $job->assertNotReleased();
 });
 
-it('fails an incomplete success once submit attempts are exhausted', function () {
+it('keeps a generation unconfirmed after a connection failure on the last attempt', function () {
     config(['services.pixelforge.max_submit_attempts' => 1]);
 
     $client = bindFakePixelforgeClient();
-    $client->createStatus = GenerationStatus::Succeeded;
-    $client->createUsage = null;
+    $client->failure = PixelforgeException::connection(new RuntimeException('timeout'));
+    $generation = Generation::factory()->create();
 
-    $generation = Generation::factory()->create(['submit_attempts' => 0]);
+    $job = runSubmitJob($generation, fakeQueue: true);
+    $generation->refresh();
+
+    expect($generation->status)->toBe(GenerationStatus::Queued)
+        ->and($generation->provider_id)->toBeNull()
+        ->and($generation->submit_unconfirmed)->toBeTrue()
+        ->and(LedgerEntry::query()->count())->toBe(0);
+
+    $job->assertNotReleased();
+});
+
+it('keeps a generation unconfirmed after an invalid response', function () {
+    config(['services.pixelforge.max_submit_attempts' => 1]);
+
+    $client = bindFakePixelforgeClient();
+    $client->failure = PixelforgeException::invalidResponse('bad body', 200);
+    $generation = Generation::factory()->create();
+
+    runSubmitJob($generation, fakeQueue: true);
+    $generation->refresh();
+
+    expect($generation->status)->toBe(GenerationStatus::Queued)
+        ->and($generation->submit_unconfirmed)->toBeTrue();
+});
+
+it('retries a server error with backoff and keeps it unconfirmed', function () {
+    $client = bindFakePixelforgeClient();
+    $client->failure = PixelforgeException::fromProvider(500, 'unknown_error', 'Boom.', null, null);
+    $generation = Generation::factory()->create();
+
+    $job = runSubmitJob($generation, fakeQueue: true);
+    $generation->refresh();
+
+    expect($generation->status)->toBe(GenerationStatus::Queued)
+        ->and($generation->submit_attempts)->toBe(1)
+        ->and($generation->submit_unconfirmed)->toBeTrue();
+
+    $job->assertReleased(SubmitBackoff::seconds(null, 1));
+});
+
+it('recovers an unconfirmed generation through the idempotent replay', function () {
+    config(['services.pixelforge.max_submit_attempts' => 1]);
+
+    $client = bindFakePixelforgeClient();
+    $generation = Generation::factory()->create();
+
+    $client->create(new CreateGenerationRequest(
+        prompt: $generation->prompt,
+        size: $generation->size,
+        quality: $generation->quality,
+        referenceImages: [],
+        metadata: ['generation_id' => $generation->id],
+        idempotencyKey: $generation->id,
+    ));
+
+    $client->failure = PixelforgeException::connection(new RuntimeException('timeout'));
+
+    runSubmitJob($generation, fakeQueue: true);
+
+    expect($generation->refresh()->submit_unconfirmed)->toBeTrue()
+        ->and($generation->provider_id)->toBeNull();
+
+    runSubmitJob($generation->fresh(), fakeQueue: true);
+    $generation->refresh();
+
+    expect($generation->provider_id)->toBe('gen_fake_1')
+        ->and($generation->status)->toBe(GenerationStatus::Queued);
+});
+
+it('keeps an unconfirmed generation on a rate limit but fails a confirmed one', function () {
+    config(['services.pixelforge.max_submit_attempts' => 1]);
+
+    $client = bindFakePixelforgeClient();
+    $unconfirmed = Generation::factory()->create(['submit_unconfirmed' => true]);
+    $confirmed = Generation::factory()->create();
+
+    $client->failure = PixelforgeException::fromProvider(429, 'rate_limit_exceeded', 'Slow.', null, 3);
+    runSubmitJob($unconfirmed, fakeQueue: true);
+
+    $client->failure = PixelforgeException::fromProvider(429, 'rate_limit_exceeded', 'Slow.', null, 3);
+    runSubmitJob($confirmed, fakeQueue: true);
+
+    expect($unconfirmed->refresh()->status)->toBe(GenerationStatus::Queued)
+        ->and($unconfirmed->submit_unconfirmed)->toBeTrue()
+        ->and($confirmed->refresh()->status)->toBe(GenerationStatus::Failed)
+        ->and($confirmed->error_message)->toBe(GenerationFailureMessage::forCode('rate_limit_exceeded'));
+});
+
+it('fails an unconfirmed generation at once when the provider proves the key unknown', function (int $status, string $code) {
+    $client = bindFakePixelforgeClient();
+    $client->failure = PixelforgeException::fromProvider($status, $code, 'No.', null, null);
+    $generation = Generation::factory()->create(['submit_unconfirmed' => true]);
+
+    runSubmitJob($generation, fakeQueue: true);
+    $generation->refresh();
+
+    expect($generation->status)->toBe(GenerationStatus::Failed)
+        ->and($generation->error_code)->toBe($code)
+        ->and($generation->submit_unconfirmed)->toBeFalse();
+})->with([
+    'validation' => [422, 'validation_failed'],
+    'content policy' => [400, 'content_policy_violation'],
+    'daily limit' => [429, 'daily_limit_exceeded'],
+]);
+
+it('gives up on an unconfirmed generation after the give-up window', function () {
+    config(['services.pixelforge.submit_give_up_seconds' => 3600]);
+
+    $client = bindFakePixelforgeClient();
+    $generation = Generation::factory()->create(['submit_unconfirmed' => true]);
+
+    $this->travel(3601)->seconds();
 
     $job = runSubmitJob($generation, fakeQueue: true);
     $generation->refresh();
 
     expect($generation->status)->toBe(GenerationStatus::Failed)
-        ->and($generation->error_code)->toBe('invalid_response')
-        ->and($generation->error_message)->toBe(GenerationFailureMessage::forCode('invalid_response'))
-        ->and($client->created)->toHaveCount(1)
-        ->and(LedgerEntry::query()->count())->toBe(0);
+        ->and($generation->error_code)->toBe('submit_failed')
+        ->and($generation->error_message)->toBe(GenerationFailureMessage::forCode('submit_failed'))
+        ->and($client->created)->toBeEmpty();
 
     $job->assertNotReleased();
+});
+
+it('leaves an unconfirmed generation queued when the worker dies during the call', function () {
+    app()->instance(PixelforgeClient::class, new class implements PixelforgeClient
+    {
+        public function pricing(): Pricing
+        {
+            throw new RuntimeException('worker died');
+        }
+
+        public function create(CreateGenerationRequest $request): CreatedGeneration
+        {
+            throw new RuntimeException('worker died');
+        }
+
+        public function retrieve(string $id): PixelforgeGeneration
+        {
+            throw new RuntimeException('worker died');
+        }
+    });
+
+    $generation = Generation::factory()->create();
+
+    try {
+        runSubmitJob($generation);
+    } catch (RuntimeException) {
+        // The queue would now call failed().
+    }
+
+    $generation->refresh();
+
+    expect($generation->submit_unconfirmed)->toBeTrue()
+        ->and($generation->submit_attempts)->toBe(1);
+
+    (new SubmitGeneration($generation->id))->failed(new RuntimeException('worker died'));
+
+    expect($generation->refresh()->status)->toBe(GenerationStatus::Queued);
+});
+
+it('waits without an attempt while enough generations are in flight at the provider', function () {
+    config([
+        'services.pixelforge.concurrency_limit' => 3,
+        'services.pixelforge.concurrency_retry_seconds' => 9,
+    ]);
+
+    $client = bindFakePixelforgeClient();
+    Generation::factory()->create(['status' => GenerationStatus::Queued, 'provider_id' => 'gen_a']);
+    Generation::factory()->create(['status' => GenerationStatus::Processing, 'provider_id' => 'gen_b']);
+    Generation::factory()->create(['status' => GenerationStatus::Processing, 'provider_id' => 'gen_c']);
+    $generation = Generation::factory()->create();
+
+    $job = runSubmitJob($generation, fakeQueue: true);
+
+    expect($generation->refresh()->submit_attempts)->toBe(0)
+        ->and($generation->submit_unconfirmed)->toBeFalse()
+        ->and($client->created)->toBeEmpty();
+
+    $job->assertReleased(9);
+});
+
+it('does not count settled generations against the in-flight gate', function () {
+    config(['services.pixelforge.concurrency_limit' => 3]);
+
+    $client = bindFakePixelforgeClient();
+    Generation::factory()->create(['status' => GenerationStatus::Queued, 'provider_id' => 'gen_a']);
+    Generation::factory()->create(['status' => GenerationStatus::Processing, 'provider_id' => 'gen_b']);
+    Generation::factory()->create(['status' => GenerationStatus::Succeeded, 'provider_id' => 'gen_c']);
+    $generation = Generation::factory()->create();
+
+    runSubmitJob($generation, fakeQueue: true);
+
+    expect($client->created)->toHaveCount(1);
+});
+
+it('waits on a concurrency 429 without using an attempt', function () {
+    config([
+        'services.pixelforge.max_submit_attempts' => 1,
+        'services.pixelforge.concurrency_retry_seconds' => 7,
+    ]);
+
+    $client = bindFakePixelforgeClient();
+    $client->failure = PixelforgeException::fromProvider(429, 'concurrency_limit_exceeded', 'Busy.', null, 5);
+    $generation = Generation::factory()->create();
+
+    $job = runSubmitJob($generation, fakeQueue: true);
+    $generation->refresh();
+
+    expect($generation->status)->toBe(GenerationStatus::Queued)
+        ->and($generation->submit_attempts)->toBe(0)
+        ->and($generation->submit_unconfirmed)->toBeFalse();
+
+    $job->assertReleased(7);
 });
 
 it('skips create when the generation is already final', function () {

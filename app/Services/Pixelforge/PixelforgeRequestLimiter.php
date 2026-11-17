@@ -36,6 +36,11 @@ final class PixelforgeRequestLimiter
         return self::positiveIntConfig('services.pixelforge.concurrency_retry_seconds', 5);
     }
 
+    public static function submitGiveUpSeconds(): int
+    {
+        return self::positiveIntConfig('services.pixelforge.submit_give_up_seconds', 86400);
+    }
+
     /**
      * @template TReturn
      *

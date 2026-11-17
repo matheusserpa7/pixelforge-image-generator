@@ -7,6 +7,7 @@ namespace App\Jobs;
 use App\Actions\ApplyGenerationSnapshot;
 use App\Actions\FailGeneration;
 use App\Data\CreateGenerationRequest;
+use App\Enums\GenerationStatus;
 use App\Enums\SnapshotOutcome;
 use App\Models\Generation;
 use App\Services\Pixelforge\GenerationFailureMessage;
@@ -51,6 +52,16 @@ final class SubmitGeneration implements ShouldQueue
 
     public function failed(Throwable $exception): void
     {
+        $generation = Generation::query()->find($this->generationId);
+
+        if ($generation !== null && $generation->provider_id === null && $generation->submit_unconfirmed) {
+            Log::warning('Pixelforge submit job failed while unconfirmed.', [
+                'generation_id' => $generation->id,
+            ]);
+
+            return;
+        }
+
         app(FailGeneration::class)->handle(
             $this->generationId,
             'submit_failed',
@@ -70,6 +81,35 @@ final class SubmitGeneration implements ShouldQueue
             return;
         }
 
+        if (
+            $generation->submit_unconfirmed
+            && $generation->created_at !== null
+            && $generation->created_at->lte(now()->subSeconds(PixelforgeRequestLimiter::submitGiveUpSeconds()))
+        ) {
+            Log::warning('Pixelforge submit gave up while unconfirmed.', [
+                'generation_id' => $generation->id,
+            ]);
+
+            $failGeneration->handle(
+                $generation->id,
+                'submit_failed',
+                GenerationFailureMessage::forCode('submit_failed'),
+            );
+
+            return;
+        }
+
+        $inFlight = Generation::query()
+            ->whereIn('status', [GenerationStatus::Queued, GenerationStatus::Processing])
+            ->whereNotNull('provider_id')
+            ->count();
+
+        if ($inFlight >= PixelforgeRequestLimiter::concurrencyLimit()) {
+            $this->release(PixelforgeRequestLimiter::concurrencyRetrySeconds());
+
+            return;
+        }
+
         $request = new CreateGenerationRequest(
             prompt: $generation->prompt,
             size: $generation->size,
@@ -79,10 +119,13 @@ final class SubmitGeneration implements ShouldQueue
             idempotencyKey: $generation->id,
         );
 
+        $wasUnconfirmed = $generation->submit_unconfirmed;
+
         try {
             $created = $limiter->run(function () use ($client, $generation, $request) {
-                $generation->increment('submit_attempts');
-                $generation->refresh();
+                $generation->submit_attempts++;
+                $generation->submit_unconfirmed = true;
+                $generation->save();
 
                 return $client->create($request);
             });
@@ -93,6 +136,23 @@ final class SubmitGeneration implements ShouldQueue
         } catch (PixelforgeException $exception) {
             $generation->refresh();
 
+            $generation->submit_unconfirmed = match (true) {
+                $exception->provesKeyUnknown() => false,
+                $exception->createdNothing() => $wasUnconfirmed,
+                default => true,
+            };
+            $generation->save();
+
+            if ($exception->status === 429 && $exception->errorCode === 'concurrency_limit_exceeded') {
+                if ($generation->submit_attempts > 0) {
+                    $generation->decrement('submit_attempts');
+                }
+
+                $this->release(max($exception->retryAfterSeconds ?? 0, PixelforgeRequestLimiter::concurrencyRetrySeconds()));
+
+                return;
+            }
+
             if ($exception->retryable && $generation->submit_attempts < PixelforgeRequestLimiter::maxSubmitAttempts()) {
                 Log::warning('Pixelforge submit failed; will retry.', [
                     'generation_id' => $generation->id,
@@ -100,6 +160,15 @@ final class SubmitGeneration implements ShouldQueue
                 ]);
 
                 $this->release(SubmitBackoff::seconds($exception->retryAfterSeconds, $generation->submit_attempts));
+
+                return;
+            }
+
+            if ($generation->submit_unconfirmed) {
+                Log::warning('Pixelforge submit unconfirmed; waiting for the provider.', [
+                    'generation_id' => $generation->id,
+                    'error_code' => $exception->errorCode,
+                ]);
 
                 return;
             }
@@ -115,22 +184,10 @@ final class SubmitGeneration implements ShouldQueue
 
         $outcome = $applyGenerationSnapshot->handle($generation->id, $created->generation);
 
-        if ($outcome !== SnapshotOutcome::Incomplete) {
-            return;
+        if ($outcome === SnapshotOutcome::Incomplete) {
+            Log::warning('Pixelforge submit returned success without usage.', [
+                'generation_id' => $generation->id,
+            ]);
         }
-
-        $generation->refresh();
-
-        if ($generation->submit_attempts >= PixelforgeRequestLimiter::maxSubmitAttempts()) {
-            $failGeneration->handle(
-                $generation->id,
-                'invalid_response',
-                GenerationFailureMessage::forCode('invalid_response'),
-            );
-
-            return;
-        }
-
-        $this->release(SubmitBackoff::seconds(null, $generation->submit_attempts));
     }
 }

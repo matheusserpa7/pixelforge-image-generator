@@ -9,7 +9,7 @@ Precondition: spec 003 is `implemented`.
       branch fills nulls and still returns `incomplete`. Their tests, including the replaced
       incomplete case. Tech spec: Model and contracts (`PixelforgeException`, `ApplyGenerationSnapshot`),
       Tests (T1 rows). Reviewer: Opus.
-- [ ] **T2. Unconfirmed submissions and the concurrency gate.** Migration (`submit_unconfirmed`, wider
+- [x] **T2. Unconfirmed submissions and the concurrency gate.** Migration (`submit_unconfirmed`, wider
       `submit_attempts`), model cast, `submit_give_up_seconds` config and `.env.example` line,
       `SubmitGeneration` (give-up, in-flight gate, unconfirmed flag, concurrency `429` without an
       attempt, incomplete ends the job, `failed()`), and the job and webhook tests. Tech spec:

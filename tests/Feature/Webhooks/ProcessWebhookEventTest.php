@@ -7,10 +7,14 @@ use App\Data\TokenUsage;
 use App\Enums\GenerationStatus;
 use App\Enums\WebhookEventOutcome;
 use App\Jobs\ProcessWebhookEvent;
+use App\Jobs\SubmitGeneration;
 use App\Models\Generation;
 use App\Models\LedgerEntry;
 use App\Models\WebhookEvent;
 use App\Services\Billing\ActualCost;
+use App\Services\Pixelforge\FakePixelforgeClient;
+use App\Services\Pixelforge\PixelforgeClient;
+use App\Services\Pixelforge\PixelforgeException;
 use Illuminate\Support\Facades\Http;
 
 beforeEach(function () {
@@ -211,4 +215,33 @@ it('does not apply the same event row twice', function () {
     expect($again->outcome)->toBe(WebhookEventOutcome::Applied)
         ->and($again->processed_at?->equalTo($processedAt))->toBeTrue()
         ->and(LedgerEntry::query()->count())->toBe(1);
+});
+
+it('resolves a generation left unconfirmed by a connection failure', function () {
+    config(['services.pixelforge.max_submit_attempts' => 1]);
+
+    $client = new FakePixelforgeClient;
+    $client->failure = PixelforgeException::connection(new RuntimeException('timeout'));
+    app()->instance(PixelforgeClient::class, $client);
+
+    $generation = Generation::factory()->create();
+    app()->call([new SubmitGeneration($generation->id), 'handle']);
+
+    expect($generation->refresh()->submit_unconfirmed)->toBeTrue()
+        ->and($generation->provider_id)->toBeNull();
+
+    $event = processEvent(storeEvent('generation.succeeded', pixelforgeGenerationObject([
+        'status' => 'succeeded',
+        'metadata' => ['generation_id' => $generation->id],
+        'usage' => usageObject(),
+    ])));
+
+    $generation->refresh();
+    $rates = GenerationRates::fromStoredArray($generation->rates ?? []);
+    $expected = ActualCost::calculate(new TokenUsage(100, 765, 1000, 200), $rates, '25');
+
+    expect($event->outcome)->toBe(WebhookEventOutcome::Applied)
+        ->and($generation->status)->toBe(GenerationStatus::Succeeded)
+        ->and(LedgerEntry::query()->count())->toBe(1)
+        ->and(LedgerEntry::query()->firstOrFail()->charge_nanos)->toBe($expected->charge->nanos);
 });

@@ -42,6 +42,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $provider_started_at
  * @property Carbon|null $provider_completed_at
  * @property int $submit_attempts
+ * @property bool $submit_unconfirmed
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read User|null $user
@@ -107,6 +108,7 @@ final class Generation extends Model
             'reference_images' => 'array',
             'rates' => 'array',
             'usage' => 'array',
+            'submit_unconfirmed' => 'boolean',
             'image_url_expires_at' => 'datetime',
             'provider_created_at' => 'datetime',
             'provider_started_at' => 'datetime',

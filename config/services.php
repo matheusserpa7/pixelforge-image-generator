@@ -49,6 +49,8 @@ return [
         'requests_per_minute' => env('PIXELFORGE_REQUESTS_PER_MINUTE', 60),
         'max_submit_attempts' => env('PIXELFORGE_MAX_SUBMIT_ATTEMPTS', 5),
         'concurrency_retry_seconds' => env('PIXELFORGE_CONCURRENCY_RETRY_SECONDS', 5),
+        // Seconds since creation after which an unconfirmed submission is failed locally (docs/specs/008).
+        'submit_give_up_seconds' => env('PIXELFORGE_SUBMIT_GIVE_UP_SECONDS', 86400),
         // Seconds without change before a queued or processing generation is polled (docs/adr/0011).
         'reconcile_after_seconds' => env('PIXELFORGE_RECONCILE_AFTER_SECONDS', 120),
     ],
