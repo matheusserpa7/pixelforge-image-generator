@@ -18,3 +18,6 @@ generation, never per token type, so roundings never accumulate.
 
 - At most half a nano (0.0000000005 USD) of difference per generation, always in a known direction.
 - Changing the markup is a config change; past charges are stored, so they do not change.
+- The markup is copied onto the generation (`generations.markup_percent`) when it is created, and
+  its charge uses that copy. A config change only affects new generations, so a user is never charged
+  at a markup they were not quoted. Spec: [010-review-hardening](../specs/010-review-hardening/).

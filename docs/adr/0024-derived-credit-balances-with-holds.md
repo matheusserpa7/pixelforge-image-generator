@@ -20,6 +20,10 @@ submits can arrive at the same moment.
 - Settlement does not change: a success writes its ledger row and the hold disappears with the status
   change; a failure just releases the hold. A charge for work Pixelforge did is never blocked, so the
   balance may go below zero when rates change between estimate and submission (ADR 0005).
+- The generation stores its maximum token counts (`maximum_tokens`). When its own rates are first
+  seen, the hold rises to the maximum charge at those rates if that is higher, and never goes down.
+  Later submits then see the real hold; only the overrun of that one generation can still push the
+  balance below zero.
 - A purchase carries a ULID idempotency key, unique in the table, so a resent form adds a pack once.
 - On release, each user with charges got one `opening_balance` row equal to them, so everyone starts
   at zero.
@@ -31,4 +35,5 @@ submits can arrive at the same moment.
 - Reading the balance costs three indexed `SUM` queries.
 - An unconfirmed generation keeps its hold for up to the give-up window of ADR 0021.
 - Purchases are fake and are not revenue; the admin report (ADR 0023) is unchanged.
-  Spec: [007-credit-balances](../specs/007-credit-balances/).
+  Spec: [007-credit-balances](../specs/007-credit-balances/). Holds at the generation's own rates:
+  [010-review-hardening](../specs/010-review-hardening/).

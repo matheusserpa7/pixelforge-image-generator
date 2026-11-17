@@ -23,3 +23,8 @@ billing code as webhooks.
   so `updated_at` means "last changed or last checked".
 - A generation the provider answers `404` for is failed locally at no cost.
   Spec: [003-webhooks-and-reconciliation](../specs/003-webhooks-and-reconciliation/).
+- The same run redispatches webhook events stored more than 5 minutes ago and never processed (up to
+  a day old), and reports once at error level a generation with a provider id still in flight after
+  `PIXELFORGE_STUCK_AFTER_SECONDS` (default 3600), setting `stuck_reported_at`. The admin report
+  lists them under "Needs attention". They are never failed locally, since the provider may have
+  billed them. Spec: [010-review-hardening](../specs/010-review-hardening/).

@@ -1,6 +1,6 @@
 # 010 Review hardening: tech spec
 
-Status: **approved** · 2026-11-17 · PRD: [prd.md](prd.md)
+Status: **implemented** · 2026-11-17 · PRD: [prd.md](prd.md)
 
 Amends ADR 0004, 0005, 0006, 0010, 0011, 0012 and 0024. It adds no new ADR: each change is a
 consequence of a decision that already exists. The provider contract is

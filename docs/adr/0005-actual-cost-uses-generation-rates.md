@@ -17,3 +17,6 @@ rates and usage we billed with are stored on the local generation.
 
 - Our provider cost matches `GET /v1/usage` even if prices change between estimate and completion.
 - Estimate and actual cost may legitimately use different rates; the UI shows both.
+- A usage whose `total_tokens` differs from the sum of the four priced token types is refused as
+  unreadable and never charged in part. A token type we do not price stops charging until the code
+  learns it; the generation is then reported as stuck (ADR 0011). Spec: [010-review-hardening](../specs/010-review-hardening/).

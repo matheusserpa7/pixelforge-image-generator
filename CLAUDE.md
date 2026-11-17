@@ -32,7 +32,8 @@ The step-by-step procedure is the `sdd` skill (`.claude/skills/sdd/SKILL.md`).
    forbidden everywhere. Arithmetic goes through `App\Support\Money\Money` (backed by `brick/math`).
    ADR 0003.
 2. User charge = provider cost × (1 + markup), rounded half-up to the nano, markup percent from
-   `config('billing.markup_percent')`, applied in exactly one place. ADR 0004.
+   `config('billing.markup_percent')`, frozen on the generation at creation, applied in exactly one
+   place. ADR 0004.
 3. Actual cost uses the `rates` stored on the generation object and its `usage`, never cached rates.
    ADR 0005.
 4. Estimates come from cached `GET /v1/pricing`: text tokens `ceil(chars / 4)`, 765 per reference
@@ -43,11 +44,12 @@ The step-by-step procedure is the `sdd` skill (`.claude/skills/sdd/SKILL.md`).
    ADR 0008.
 7. Status only moves forward; `succeeded` and `failed` are final. ADR 0009.
 8. Charge exactly once: append-only ledger, unique per generation, inside a transaction with a row
-   lock. Failure costs zero. ADR 0010.
-9. A scheduled job polls generations stuck for too long (safety net for lost webhooks). ADR 0011.
+   lock, enforced by DB triggers. Failure costs zero. ADR 0010.
+9. A scheduled job polls generations stuck for too long (safety net for lost webhooks) and reports
+   generations still in flight after an hour. ADR 0011.
 10. Provider limits (3 concurrent, 60 req/min): Redis limiter in the job; on `429`/`503` release
-    respecting `Retry-After`, with backoff and a max attempts cap. ADR 0012. Concurrency waits never
-    use an attempt. A generation is failed locally only when the provider cannot have it. ADR 0021.
+    respecting `Retry-After`, with backoff and a max attempts cap. ADR 0012. Concurrency and per-minute
+    waits never use an attempt. A generation is failed locally only when the provider cannot have it. ADR 0021.
 11. Images are downloaded to a Laravel disk (local now, S3-compatible). ADR 0013.
 12. Users only see their own generations, enforced by a Policy. ADR 0014.
 13. Live status through Inertia polling, no WebSockets. ADR 0015.
@@ -58,7 +60,8 @@ The step-by-step procedure is the `sdd` skill (`.claude/skills/sdd/SKILL.md`).
     provider cost with `GET /v1/usage` exactly; usage is cached 60 s and spends the shared minute
     budget. ADR 0023.
 16. Credit balances are derived, never stored: purchases (append-only `credit_purchases`) minus
-    ledger charges. Each queued or processing generation holds its maximum charge; a generation is
+    ledger charges. Each queued or processing generation holds its maximum charge, raised to the
+    maximum at the generation's own rates once they are known; a generation is
     accepted only if its maximum fits the available credit, checked under a lock on the user row.
     ADR 0024.
 

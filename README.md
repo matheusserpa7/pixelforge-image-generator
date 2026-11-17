@@ -9,7 +9,7 @@ This is a take-home assessment for PromptEdit. The brief is summarised in
 [docs/product/overview.md](docs/product/overview.md) and the API in
 [docs/product/pixelforge-api.md](docs/product/pixelforge-api.md).
 
-> **Status:** all specs (000 to 009) done, deployed at
+> **Status:** all specs (000 to 010) done, deployed at
 > **https://pixelforge.matheusserpa.online**. A signed-in user sees the estimate and maximum before
 > submitting, and follows each generation live in their history with its actual charge and image. A
 > job sends it to Pixelforge under the provider's limits, and a submission the provider may have

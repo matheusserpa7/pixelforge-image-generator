@@ -27,3 +27,7 @@ is not retried.
   `429 concurrency_limit_exceeded` waits without using an attempt. Every `5xx` is retried. When
   attempts run out on a generation the provider may have, it stays queued (ADR 0021).
   Spec: [008-safe-submit-failures](../specs/008-safe-submit-failures/).
+- `429 rate_limit_exceeded` waits without using an attempt, like concurrency: the provider's limits
+  are per account, across environments. The per-minute counter is incremented before it is checked,
+  so parallel callers cannot overshoot it. A waiting submit job touches `updated_at`, so
+  reconciliation does not mistake it for a lost job. Spec: [010-review-hardening](../specs/010-review-hardening/).

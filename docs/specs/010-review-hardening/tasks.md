@@ -1,6 +1,6 @@
 # 010 Review hardening: tasks
 
-Status: **approved** · 2026-11-17 · Tech spec: [tech-spec.md](tech-spec.md)
+Status: **implemented** · 2026-11-17 · Tech spec: [tech-spec.md](tech-spec.md)
 
 Precondition: specs 000 to 009 are `implemented`. The tasks do not edit `docs/`, `README.md` or
 `CLAUDE.md`. The main session closes the documents after T5 ("Documents at close").

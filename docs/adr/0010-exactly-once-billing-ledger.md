@@ -18,3 +18,9 @@ writes no entry (cost zero).
 
 - Even a race between two workers cannot double charge: the constraint rejects the second row.
 - Reports sum the ledger; a correction, if ever needed, is a new entry, never an edit.
+- MySQL triggers refuse `UPDATE` and `DELETE` on `ledger_entries` and `credit_purchases`; the
+  Eloquent guards stay for a clearer error. Foreign key `SET NULL` still works because cascaded
+  actions do not fire triggers. Creating them as the app user with binary logging on needs
+  `--log-bin-trust-function-creators=1` on the server (compose files; `SET GLOBAL` in CI). MySQL
+  8.4 marks that variable deprecated, so a future major version will need the triggers created by a
+  privileged user. Spec: [010-review-hardening](../specs/010-review-hardening/).

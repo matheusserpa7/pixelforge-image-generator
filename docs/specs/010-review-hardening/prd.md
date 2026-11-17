@@ -1,6 +1,6 @@
 # 010 Review hardening: PRD
 
-Status: **approved** · 2026-11-17
+Status: **implemented** · 2026-11-17
 
 Fixes the findings of an adversarial review of the whole app (money, robustness, UX). Every finding was
 read in the code and the money ones were reproduced in a throwaway test. Each one names a concrete
