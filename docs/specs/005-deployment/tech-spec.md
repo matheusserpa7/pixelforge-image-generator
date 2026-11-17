@@ -1,17 +1,35 @@
 # 005 Deployment: tech spec
 
-Status: **approved** · 2026-11-17 · PRD: [prd.md](prd.md)
+Status: **approved** · 2026-11-17 (revised: shared edge proxy) · PRD: [prd.md](prd.md)
 
 Deploys the existing `prod` image (ADR 0016) to the maintainer's existing VPS at
 `https://pixelforge.matheusserpa.online`. No application behaviour changes for users; the changes are
-the production Compose file, the image, trusted proxies, an admin command, a seeder guard, a deploy
-script and a runbook.
+the production Compose file, trusted proxies, an admin command, a seeder guard, a deploy script, a
+runbook and one server block on the VPS's shared edge proxy.
 
-Proposed ADR (written at close, not in the tasks): **0022. Single-VPS deployment with FrankenPHP's
-automatic HTTPS and a manual deploy command.** Context: the brief needs a public URL and Pixelforge
-needs a public webhook URL; the VPS already exists. Decision: the content of "Decisions this spec
-locks" below. Consequences: one command to ship, a few seconds of downtime per deploy covered by
-webhook retries and reconciliation, no backups yet, the image is built on the server. At close also:
+## Revision (2026-11-17, after T1 and T2)
+
+The first version had FrankenPHP's Caddy terminate TLS on ports 80/443. Inspecting the VPS showed
+those ports already belong to a shared **edge proxy**: an `nginx:1.28.3-alpine` container from
+`/home/deploy/edge` (Compose project `edge`, owned by the `deploy` user), on the external Docker
+network `edge`, serving `matheusserpa.online`, `hoop-ia.` and `zap.matheusserpa.online` and
+`saberecommerce.com`. Each project joins the `edge` network and the proxy forwards its domain to the
+project's web container by name. Certificates are issued with certbot (webroot) into
+`/home/deploy/edge/certbot/conf`, renewed nightly by `/home/deploy/edge/renew.sh` (cron of `deploy`),
+which renews every certificate there and reloads nginx.
+
+So Decisions 1–4 change: the app joins that network and the edge proxy terminates TLS. T1's
+`setcap`, Caddy volumes, published ports, `SERVER_NAME` override and `TRUSTED_PROXIES: ''` are
+undone by T3. T1's configurable trusted proxies and everything in T2 stay. The SSH user is `aiflow`
+(alias `aiflow` on the maintainer's machine, now in the `docker` group); it cannot write `/opt`, so
+the app lives in `~/pixelforge-studio`.
+
+Proposed ADR (written at close, not in the tasks): **0022. Single-VPS deployment behind the shared
+edge proxy, with a manual deploy command.** Context: the brief needs a public URL and Pixelforge
+needs a public webhook URL; the VPS and its edge proxy already exist. Decision: the content of
+"Decisions this spec locks" below. Consequences: one command to ship, a few seconds of downtime per
+deploy covered by webhook retries and reconciliation, no backups yet, the image is built on the
+server, and the edge proxy (outside this repository) holds the TLS config and certificate. At close also:
 README "Run it" production paragraph points to `docs/deployment.md` and the public URL, `CLAUDE.md`
 commands table gets `make deploy`, roadmap 005 `Done` and 006 `Next`, README status line.
 `docs/product/` does not change. Do not edit `docs/product/`, `docs/adr/`, `docs/roadmap.md`,
@@ -46,21 +64,24 @@ commands table gets `make deploy`, roadmap 005 `Done` and 006 `Next`, README sta
 
 ### Decisions this spec locks
 
-1. **TLS by FrankenPHP's own Caddy.** In production the `app` container sets
-   `SERVER_NAME: '${APP_DOMAIN:?APP_DOMAIN is required}, :8080'`: Caddy obtains and renews a Let's
-   Encrypt certificate for the domain, serves it on 443 (TCP and UDP for HTTP/3), redirects 80 to 443,
-   and keeps plain `:8080` inside the container for the healthcheck only (8080 is no longer published).
-   No reverse proxy on the VPS. Ports 80 and 443 must be free there.
-2. **Binding 80/443 as non-root.** The image gives the FrankenPHP binary `CAP_NET_BIND_SERVICE`
-   (`setcap`, as FrankenPHP's docs recommend for rootless images); the container keeps running as
-   `app`.
-3. **Certificates persist** in named volumes `caddy_data` (`/data`) and `caddy_config` (`/config`) on
-   `app`, so a redeploy never asks Let's Encrypt again (its rate limits are strict).
+1. **TLS by the shared edge proxy.** The edge nginx terminates TLS for
+   `pixelforge.matheusserpa.online`, redirects HTTP to HTTPS, and forwards to
+   `http://pixelforge-app:8080` over the `edge` network. FrankenPHP keeps its plain `:8080` (the image
+   default); the app publishes no port on the host.
+2. **The app joins the `edge` network** (external, name `${EDGE_NETWORK:-edge}`) with the alias
+   `pixelforge-app`, unique on that network (other projects use `app` and `nginx` service names).
+   Only the `app` service joins it; Horizon, the scheduler, MySQL and Redis stay on the project's
+   default network.
+3. **Its own certificate.** A separate Let's Encrypt certificate named
+   `pixelforge.matheusserpa.online`, issued by the same certbot webroot flow. The existing
+   `matheusserpa.online` certificate is not touched, so the other sites cannot break. `renew.sh`
+   already renews every certificate in that folder.
 4. **Trusted proxies are configuration.** `config/trustedproxy.php` reads `TRUSTED_PROXIES`
-   (comma-separated IPs/CIDRs). Unset → the current private list (development and the Cloudflare
-   tunnel keep working). In production nothing sits in front of the app, so `compose.prod.yaml` sets
-   it to empty on `app`: forwarding headers are never trusted and `request()->ip()` is the real
-   client address.
+   (comma-separated IPs/CIDRs; empty trusts nobody). Unset → the private list. Production leaves it
+   unset: the app publishes no port, so only containers on its Docker networks (the edge proxy) can
+   reach it. The edge proxy appends the real client address to `X-Forwarded-For`; Symfony reads the
+   chain from the right and skips trusted addresses, so a forged header from a client cannot change
+   `request()->ip()`, and `X-Forwarded-Proto: https` makes URLs and secure cookies correct.
 5. **Build on the server.** The deploy pulls `main` on the VPS and runs
    `docker compose -f compose.prod.yaml up -d --build --wait`. No registry.
 6. **Start order.** `horizon` and `scheduler` depend on `app` being `service_healthy`, so they never
@@ -108,41 +129,85 @@ present) and return without creating anything. Development seeds stay as they ar
 
 ### `.env.example` additions
 
-In the Application section, after `APP_URL`:
+`APP_DOMAIN` (added in T1) is removed. After the Redis/session block:
 
 ```dotenv
-# Production only: public domain served over HTTPS by FrankenPHP (compose.prod.yaml).
-# APP_DOMAIN=pixelforge.example.com
-```
-
-After the Redis/session block:
-
-```dotenv
-# IPs or CIDRs allowed to set X-Forwarded-* headers. Unset: private networks (Docker, tunnel).
-# compose.prod.yaml sets it empty: nothing proxies the app in production.
+# IPs or CIDRs allowed to set X-Forwarded-* headers; empty trusts nobody. Unset: private networks
+# (Docker, the dev tunnel, the production edge proxy). Production leaves it unset.
 # TRUSTED_PROXIES=
+# Production only: external Docker network of the VPS's edge proxy (compose.prod.yaml).
+# EDGE_NETWORK=edge
 ```
 
 `APP_PORT`'s comment says it is development only.
 
 ### `compose.prod.yaml`
 
-- A `x-logging` anchor (`driver: json-file`, options `max-size: '10m'`, `max-file: '5'`) used by every
-  service.
-- `app`: `environment` gets `SERVER_NAME` (decision 1) and `TRUSTED_PROXIES: ''` next to
-  `RUN_MIGRATIONS`; `ports` become `'80:80'`, `'443:443'`, `'443:443/udp'`; volumes add
-  `caddy_data:/data` and `caddy_config:/config` (keep `storage`).
-- `horizon` and `scheduler`: `depends_on` adds `app: condition: service_healthy` (keeping MySQL and
-  Redis). YAML merge keys are shallow, so write their full `depends_on` maps.
-- `volumes` adds `caddy_data`, `caddy_config`.
-- The header comment explains the domain, ports and `make deploy`.
+- Keep from T1: the `x-logging` anchor on every service, and `horizon` / `scheduler` depending on
+  `app: condition: service_healthy` with full `depends_on` maps.
+- `app`: `environment` keeps only `RUN_MIGRATIONS: 'true'` (remove `SERVER_NAME` and
+  `TRUSTED_PROXIES`); no `ports`; volumes back to `storage:/app/storage/app` only; `networks`:
+  `default: {}` and `edge: { aliases: [pixelforge-app] }`.
+- Top-level `networks`: `edge: { name: '${EDGE_NETWORK:-edge}', external: true }`.
+- Top-level `volumes`: remove `caddy_data`, `caddy_config`.
+- The header comment explains: served behind the VPS edge proxy (`docs/deployment.md`), the `edge`
+  network must exist, no host port is published, `make deploy`.
 
 ### `Dockerfile`
 
-In `base`, after `install-php-extensions`: run
-`setcap CAP_NET_BIND_SERVICE=+eip /usr/local/bin/frankenphp`. The base image already ships `setcap`
-and sets `cap_net_bind_service=ep` on that binary; the explicit call keeps the guarantee if the base
-image ever drops it, so no `libcap2-bin` install is needed. Nothing else changes; dev keeps `:8080`.
+Revert T1's `setcap` call in `base`: nothing binds below 1024 anymore. The `Dockerfile` ends up as it
+was before this spec.
+
+### Edge proxy changes (on the VPS, outside the repository)
+
+Applied in T4 only after the maintainer approves them in chat; documented in `docs/deployment.md` by
+T3. The file is `/home/deploy/edge/nginx/default.conf` (owned by `deploy`). In order:
+
+1. Add `pixelforge.matheusserpa.online` to the `server_name` list of the existing port-80 redirect
+   block for `matheusserpa.online` (the one that serves `/.well-known/acme-challenge/` from
+   `/var/www/certbot`), then `docker compose exec nginx nginx -t && docker compose exec nginx nginx -s
+   reload` in `/home/deploy/edge`.
+2. Issue the certificate:
+
+   ```sh
+   cd /home/deploy/edge
+   docker run --rm \
+     -v "$PWD/certbot/conf:/etc/letsencrypt" \
+     -v "$PWD/certbot/www:/var/www/html/public" \
+     certbot/certbot:latest certonly --webroot -w /var/www/html/public \
+     --cert-name pixelforge.matheusserpa.online -d pixelforge.matheusserpa.online \
+     --non-interactive --agree-tos --no-eff-email --register-unsafely-without-email
+   ```
+
+   (The existing ACME account is reused; the flags only matter if none is found.)
+3. Add the HTTPS block, in the same style as the other projects, then `nginx -t` and reload:
+
+   ```nginx
+   # ----------------------------------------------------------------------------- pixelforge
+   server {
+       listen 443 ssl;
+       http2 on;
+       server_name pixelforge.matheusserpa.online;
+
+       ssl_certificate /etc/letsencrypt/live/pixelforge.matheusserpa.online/fullchain.pem;
+       ssl_certificate_key /etc/letsencrypt/live/pixelforge.matheusserpa.online/privkey.pem;
+
+       set $pixelforge http://pixelforge-app:8080;
+
+       location / {
+           proxy_http_version 1.1;
+           proxy_set_header Host $host;
+           proxy_set_header X-Real-IP $remote_addr;
+           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+           proxy_set_header X-Forwarded-Proto https;
+           proxy_pass $pixelforge;
+           proxy_read_timeout 60s;
+       }
+   }
+   ```
+
+The `resolver 127.0.0.11` and `set $var` pattern already in that file let nginx start even when the
+app is down (it answers `502` until the app is up).
 
 ### `scripts/deploy.sh` (new) and `make deploy`
 
@@ -151,7 +216,7 @@ POSIX `sh`, `set -eu`, runs on the maintainer's machine (Git Bash on Windows, an
 | Variable      | Default                                        | Meaning                                    |
 | ------------- | ---------------------------------------------- | ------------------------------------------ |
 | `DEPLOY_HOST` | required                                       | SSH destination (`user@host` or an alias). |
-| `DEPLOY_PATH` | `/opt/pixelforge-studio`                       | Clone of the repository on the server.     |
+| `DEPLOY_PATH` | `pixelforge-studio` (T3; was `/opt/...`)       | Clone on the server, relative to the SSH user's home. |
 | `DEPLOY_URL`  | `https://pixelforge.matheusserpa.online`       | Public URL checked at the end.             |
 
 Steps:
@@ -172,18 +237,20 @@ Add `scripts` to `.dockerignore`.
 
 ### `docs/deployment.md` (new runbook)
 
-Sections, short and command-first:
+Sections, short and command-first. T3 rewrites what T2 wrote about Caddy, ports 80/443,
+`APP_DOMAIN`, `/opt` and `caddy_data` to match this revision, and adds an **Edge proxy** section with
+the three steps of "Edge proxy changes" above.
 
-1. **Requirements**: VPS with Docker Engine + Compose plugin, ports 80/443 (TCP, plus UDP 443) open
-   and free, ~3 GB RAM for the stack plus headroom for builds, DNS `A`/`AAAA` record of the domain
-   pointing to the VPS before the first start.
+1. **Requirements**: VPS with Docker Engine + Compose plugin, an SSH user in the `docker` group, the
+   edge proxy running with its `edge` network, ~3 GB RAM for the stack plus headroom for builds, DNS
+   `A` record of the domain pointing to the VPS.
 2. **Pixelforge**: create a production API key, set its webhook URL to
    `https://<domain>/webhooks/pixelforge`, copy the key and the `whsec_…` secret. Never reuse the
    development key (`GET /v1/usage` must match only production).
-3. **First install**: `git clone` into `/opt/pixelforge-studio`, `cp .env.example .env`,
+3. **First install**: `git clone` into `~/pixelforge-studio`, `cp .env.example .env`,
    `chmod 600 .env`, and the production values to change: `APP_ENV=production`, `APP_DEBUG=false`,
    `APP_KEY` (`echo "base64:$(openssl rand -base64 32)"`), `APP_URL=https://<domain>`,
-   `APP_DOMAIN=<domain>`, `LOG_LEVEL=info`, strong `DB_PASSWORD` and `DB_ROOT_PASSWORD`,
+   `LOG_LEVEL=info`, strong `DB_PASSWORD` and `DB_ROOT_PASSWORD`,
    `PIXELFORGE_API_KEY`, `PIXELFORGE_WEBHOOK_SECRET`, optional `SENTRY_LARAVEL_DSN`. Then the first
    `make deploy` from the maintainer's machine (or the same compose command on the server).
 4. **Admin**: register in the browser, then
@@ -191,7 +258,7 @@ Sections, short and command-first:
 5. **Ship a version**: push to `main`, CI green, `make deploy DEPLOY_HOST=<ssh destination>`. What
    happens during the few seconds of downtime (webhooks retried, reconciliation).
 6. **Operate**: health URL, `docker compose -f compose.prod.yaml ps`, `logs -f app horizon`,
-   Horizon and Pulse URLs, where data lives (volumes `mysql`, `redis`, `storage`, `caddy_data`) and
+   Horizon and Pulse URLs, where data lives (volumes `mysql`, `redis`, `storage`) and
    that `down -v` destroys it.
 7. **Never in production**: `db:seed`, `migrate:fresh`, `make fresh`.
 
@@ -199,8 +266,8 @@ Sections, short and command-first:
 
 - Development is unchanged: `compose.yaml`, the `dev` target and `SERVER_NAME=:8080` stay; unset
   `TRUSTED_PROXIES` keeps today's list.
-- In production the web container answers `https://<domain>` and nothing else publicly; MySQL and
-  Redis publish no ports.
+- In production nothing of this stack publishes a host port; the edge proxy reaches the web
+  container as `pixelforge-app:8080` on the `edge` network.
 - A deploy rebuilds the image, recreates changed containers, waits for every healthcheck, and fails
   loudly if the public health check fails. Volumes are never removed by the script.
 
@@ -212,19 +279,29 @@ Sections, short and command-first:
 | Smoke (manual, reported in the task, not in Pest): `docker compose -f compose.prod.yaml config` is valid with `APP_DOMAIN` set and fails with a clear message without it; the `prod` image builds; `getcap /usr/local/bin/frankenphp` inside it shows `cap_net_bind_service`. | T1 |
 | Feature: `users:make-admin` promotes an existing user (exit 0, `is_admin` true), is a no-op for an admin, fails with exit 1 and the message for an unknown email. | T2 |
 | Feature: `DatabaseSeeder` creates no users when the environment is `production` (`app()->detectEnvironment(fn () => 'production')` or equivalent, restored after), and still creates both in `testing`. | T2 |
-| Live checklist (main session with the maintainer, recorded in T3): the PRD acceptance list. | T3 |
+| Feature (T3): with the default list, a request from the edge proxy (`REMOTE_ADDR` `172.21.0.4`) carrying `X-Forwarded-For: 10.9.9.9, 203.0.113.9` (a forged private entry followed by the address nginx appended) sees `$request->ip()` = `203.0.113.9`, and `X-Forwarded-Proto: https` makes `$request->isSecure()` true. | T3 |
+| Smoke (T3, manual): `docker compose -f compose.prod.yaml config` renders no `ports`, the `edge` network as external with the `pixelforge-app` alias on `app` only, no Caddy volumes; it does not ask for `APP_DOMAIN`. The `prod` image builds. | T3 |
+| Live checklist (main session with the maintainer, recorded in T4): the PRD acceptance list. | T4 |
 
-The local smoke run must not start the production stack on top of the development one: if the
-implementer boots it at all, use a separate project name (`-p pixelforge-smoke`), and
-`down -v` it afterwards. Booting it is optional; the `config` and image checks are required.
+The T1 smoke row is superseded by T3's. The local smoke run must not start the production stack on
+top of the development one: if the implementer boots it at all, use a separate project name
+(`-p pixelforge-smoke`), create the `edge` network for it, and remove both afterwards. Booting it is
+optional; the `config` and image checks are required.
 
 ## Risks
 
-- **Ports 80/443 already used on the shared VPS.** Caddy cannot start; the deploy's `--wait` fails.
-  Checked in T3 before the first start (`ss -tlnp`). If taken, this spec goes back to draft for the
-  reverse-proxy variant.
-- **DNS not pointing to the VPS at first start.** The ACME challenge fails and Caddy retries with
-  backoff; Let's Encrypt rate limits failed validations. Check `dig` before the first start.
+- **Breaking the other sites on the edge proxy.** One bad edit to the shared `default.conf` takes
+  down every site. Mitigation: always `nginx -t` before `nginx -s reload` (a failed test leaves the
+  running config in place), a separate certificate instead of expanding the shared one, and a copy
+  of `default.conf` taken before editing. The maintainer approves the change in chat before it is
+  applied.
+- **Writing as `aiflow` into `deploy`'s folder.** `aiflow` has no write access to `/home/deploy/edge`;
+  through the `docker` group it can, but that bypasses file ownership. T4 asks the maintainer whether
+  to apply the edge changes that way (files kept owned by uid 1000) or to do them as `deploy`/root.
+- **Certificate issuance fails.** The ACME challenge only works once step 1 of the edge changes is
+  live; the DNS already points to the VPS. Let's Encrypt rate limits failed validations, so check
+  `curl http://<domain>/.well-known/acme-challenge/x` reaches the edge (a `404`, not a closed
+  connection) before running certbot.
 - **Memory on a shared VPS.** Limits add up to ~3 GB; the build (Composer, `npm ci`, Vite) needs
   ~2 GB more while it runs. Check `free -h` in T3; on pressure, build with the stack running is still
   fine because the old containers keep serving until recreated.
@@ -233,7 +310,8 @@ implementer boots it at all, use a separate project name (`-p pixelforge-smoke`)
   AOF). Horizon stops gracefully (`stop_grace_period: 60s`).
 - **Losing data.** Only `down -v` or deleting volumes loses it; the runbook says so. No backups in
   scope.
-- **Trusted proxies misconfigured.** Too wide in production lets clients forge their IP and dodge
-  throttles; T1's test and the explicit empty value on `app` cover it.
+- **Trusted proxies misconfigured.** Trusting the private ranges is safe only while the app
+  publishes no host port; if a port is ever published, clients could forge their IP. The T3 smoke
+  check (no `ports`) and the comment in `compose.prod.yaml` guard it.
 - **Secrets.** `.env` lives only on the server with mode 600; nothing secret goes into the
   repository, the script or GitHub.

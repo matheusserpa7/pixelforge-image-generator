@@ -1,6 +1,6 @@
 # 005 Deployment: PRD
 
-Status: **approved** · 2026-11-17
+Status: **approved** · 2026-11-17 (revised: shared edge proxy)
 
 ## Problem
 
@@ -24,8 +24,12 @@ repeatable way to ship a new version, and no written procedure for the first ins
 
 - The app served at `https://pixelforge.matheusserpa.online`, with a valid certificate obtained and
   renewed automatically, HTTP redirected to HTTPS.
-- Runs on the maintainer's existing VPS (the one that already hosts the aiflow runner), from the same
-  production image CI already builds, with MySQL, Redis, Horizon and the scheduler.
+- Runs on the maintainer's existing VPS (the one that already hosts the aiflow runner), as the
+  `aiflow` user, from the same production image CI already builds, with MySQL, Redis, Horizon and the
+  scheduler.
+- That VPS already has a shared edge proxy that owns ports 80/443 and serves the maintainer's other
+  sites. The app sits behind it like those sites do, with its own certificate, without disturbing
+  them.
 - Its own Pixelforge API key and signing secret for production, with that key's webhook URL pointing
   to the production webhook endpoint, so `GET /v1/usage` for that key matches only what the deployed
   app did.
@@ -52,8 +56,8 @@ repeatable way to ship a new version, and no written procedure for the first ins
 - Closing registration or adding invite codes. Abuse is bounded by the existing per-user submission
   throttle and Pixelforge's own daily limit.
 - Object storage (S3) for images; the local disk on a named volume is enough.
-- Server hardening beyond opening ports 80 and 443 (SSH, firewall policy and OS updates are the
-  maintainer's existing setup).
+- Server hardening (SSH, firewall policy and OS updates are the maintainer's existing setup).
+- Changing how the edge proxy itself works (its image, renewal cron, other sites).
 
 ## Acceptance
 
@@ -66,16 +70,14 @@ repeatable way to ship a new version, and no written procedure for the first ins
    polling).
 5. The admin can open Horizon and Pulse; a regular user gets `403`.
 6. Shipping a new version is one command from the maintainer's machine; it ends by saying whether the
-   deployed app is healthy, and the database, images and certificate are still there afterwards.
-7. A request with a forged `X-Forwarded-For` header is throttled by its real address.
-8. No production account has a known default password.
-9. The runbook lets someone who was not in this conversation install and ship the app.
+   deployed app is healthy, and the database and images are still there afterwards.
+7. The other sites behind the edge proxy keep answering during and after the change.
+8. A request with a forged `X-Forwarded-For` header is throttled by its real address.
+9. No production account has a known default password.
+10. The runbook lets someone who was not in this conversation install and ship the app.
 
 ## Open questions
 
-- SSH address and user of the VPS, and the folder the app lives in (default `/opt/pixelforge-studio`).
-- Ports 80 and 443 must be free on that VPS (nothing else listening there today?).
-- Free memory and disk on the VPS: the stack is limited to about 3 GB of RAM, and building the image
-  on the server needs about 2 GB while it runs.
-- The DNS `A` (and `AAAA`, if any) record of `pixelforge.matheusserpa.online` must point to the VPS
-  before the first start, or the certificate request fails.
+None. Answered on 2026-11-17: SSH as `aiflow` (alias `aiflow`, already in the `docker` group), app in
+`~/pixelforge-studio`; ports 80/443 belong to the edge proxy (`/home/deploy/edge`, network `edge`);
+7.8 GB RAM (5.9 GB available) and 72 GB free disk; DNS already points to the VPS.
