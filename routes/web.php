@@ -5,10 +5,9 @@ declare(strict_types=1);
 use App\Http\Controllers\GenerationController;
 use App\Http\Controllers\GenerationImageController;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
-use Inertia\Response;
 
-Route::get('/', fn (): Response => Inertia::render('Welcome'))->name('home');
+// No landing page: the app is the generations page; guests land on login through `auth`.
+Route::redirect('/', '/generations')->name('home');
 
 Route::middleware('auth')->group(function (): void {
     Route::redirect('dashboard', '/generations')->name('dashboard');

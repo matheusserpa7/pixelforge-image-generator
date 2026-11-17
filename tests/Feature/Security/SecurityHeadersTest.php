@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 it('sends the security headers on pages', function () {
-    $this->get(route('home'))
+    $this->get(route('login'))
         ->assertOk()
         ->assertHeader('X-Content-Type-Options', 'nosniff')
         ->assertHeader('X-Frame-Options', 'DENY')
@@ -13,7 +13,7 @@ it('sends the security headers on pages', function () {
 });
 
 it('only allows scripts that carry the request nonce', function () {
-    $response = $this->get(route('home'));
+    $response = $this->get(route('login'));
 
     $policy = (string) $response->headers->get('Content-Security-Policy');
     preg_match("/'nonce-([^']+)'/", $policy, $matches);
