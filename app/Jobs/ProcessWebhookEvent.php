@@ -9,6 +9,7 @@ use App\Data\PixelforgeGeneration;
 use App\Enums\WebhookEventOutcome;
 use App\Models\Generation;
 use App\Models\WebhookEvent;
+use App\Services\Pixelforge\DecimalJson;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Carbon;
@@ -48,7 +49,10 @@ final class ProcessWebhookEvent implements ShouldQueue
         $snapshot = $this->parseSnapshot($event);
 
         if ($snapshot === null) {
-            Log::warning('Pixelforge webhook payload is invalid.', ['event_id' => $event->event_id]);
+            Log::error('Pixelforge webhook payload is invalid.', [
+                'event_id' => $event->event_id,
+                'type' => $event->type,
+            ]);
             $this->finish($event, WebhookEventOutcome::InvalidPayload);
 
             return;
@@ -80,8 +84,13 @@ final class ProcessWebhookEvent implements ShouldQueue
 
     private function parseSnapshot(WebhookEvent $event): ?PixelforgeGeneration
     {
-        $decoded = json_decode($event->payload, true);
-        $object = is_array($decoded) && is_array($decoded['data'] ?? null)
+        try {
+            $decoded = DecimalJson::decode($event->payload);
+        } catch (InvalidArgumentException) {
+            return null;
+        }
+
+        $object = is_array($decoded['data'] ?? null)
             ? ($decoded['data']['object'] ?? null)
             : null;
 

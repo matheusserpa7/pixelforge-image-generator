@@ -45,15 +45,17 @@ function processEvent(WebhookEvent $event): WebhookEvent
 }
 
 /**
- * @return array<string, string>
+ * Token counts as integers, the way Pixelforge sends them (JSON numbers).
+ *
+ * @return array<string, int>
  */
 function usageObject(): array
 {
     return [
-        'input_text_tokens' => '100',
-        'input_image_tokens' => '765',
-        'output_tokens' => '1000',
-        'reasoning_tokens' => '200',
+        'input_text_tokens' => 100,
+        'input_image_tokens' => 765,
+        'output_tokens' => 1000,
+        'reasoning_tokens' => 200,
     ];
 }
 
@@ -247,4 +249,68 @@ it('resolves a generation left unconfirmed by a connection failure', function ()
         ->and($generation->status)->toBe(GenerationStatus::Succeeded)
         ->and(LedgerEntry::query()->count())->toBe(1)
         ->and(LedgerEntry::query()->firstOrFail()->charge_nanos)->toBe($expected->charge->nanos);
+});
+
+/**
+ * The production payload (event evt_01M7MRN5ZWE111HMGRXFNBW6HY) with numbers as JSON numbers.
+ */
+function productionSucceededPayload(string $generationId, string $eventId): string
+{
+    return '{"id":"'.$eventId.'","type":"generation.succeeded","data":{"object":{'
+        .'"id":"gen_test_1","object":"generation","status":"succeeded","prompt":"A lighthouse at dusk",'
+        .'"size":"1024x1024","quality":"medium","reference_images":[],'
+        .'"metadata":{"generation_id":"'.$generationId.'"},'
+        .'"image_url":"https://example.test/image.png","image_url_expires_at":"2026-11-17T12:00:00Z",'
+        .'"usage":{"input_text_tokens":17,"input_image_tokens":0,"output_tokens":1100,"reasoning_tokens":1819,"total_tokens":2936},'
+        .'"rates":{"input_text_tokens":"5.00","input_image_tokens":"10.00","output_tokens":"40.00","reasoning_tokens":"12.50"},'
+        .'"error":null,"created_at":"2026-11-17T12:00:00Z","started_at":"2026-11-17T12:00:01Z","completed_at":"2026-11-17T12:00:09Z"'
+        .'}}}';
+}
+
+it('applies a production-shaped succeeded payload with numeric token counts', function () {
+    $generation = Generation::factory()->create();
+
+    $event = processEvent(WebhookEvent::query()->create([
+        'event_id' => 'evt_prod_1',
+        'type' => 'generation.succeeded',
+        'payload' => productionSucceededPayload($generation->id, 'evt_prod_1'),
+    ]));
+    $entry = LedgerEntry::query()->firstOrFail();
+
+    expect($event->outcome)->toBe(WebhookEventOutcome::Applied)
+        ->and($generation->refresh()->status)->toBe(GenerationStatus::Succeeded)
+        ->and(LedgerEntry::query()->count())->toBe(1)
+        ->and($entry->provider_cost_nanos)->toBe(66822500)
+        ->and($entry->charge_nanos)->toBe(83528125);
+
+    Queue::assertPushed(DownloadGenerationImage::class);
+});
+
+it('charges once when the same production payload arrives under another event id', function () {
+    $generation = Generation::factory()->create();
+
+    foreach (['evt_prod_1', 'evt_prod_2'] as $eventId) {
+        processEvent(WebhookEvent::query()->create([
+            'event_id' => $eventId,
+            'type' => 'generation.succeeded',
+            'payload' => productionSucceededPayload($generation->id, $eventId),
+        ]));
+    }
+
+    expect(LedgerEntry::query()->count())->toBe(1);
+});
+
+it('logs an unparseable generation payload at error level', function () {
+    Log::spy();
+
+    $object = pixelforgeGenerationObject();
+    unset($object['rates']);
+
+    $event = processEvent(storeEvent('generation.processing', $object, 'evt_bad_1'));
+
+    expect($event->outcome)->toBe(WebhookEventOutcome::InvalidPayload);
+
+    Log::shouldHaveReceived('error')
+        ->withArgs(fn (string $message, array $context): bool => ($context['event_id'] ?? null) === 'evt_bad_1')
+        ->once();
 });

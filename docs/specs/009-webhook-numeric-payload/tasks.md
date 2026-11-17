@@ -2,7 +2,7 @@
 
 Status: **approved** · 2026-11-17 · Tech spec: [tech-spec.md](tech-spec.md)
 
-- [ ] **T1. Decode webhook payloads with `DecimalJson`.** The failing production-payload test first,
+- [x] **T1. Decode webhook payloads with `DecimalJson`.** The failing production-payload test first,
       then `ProcessWebhookEvent::parseSnapshot()` with `DecimalJson`, the error-level log, `usageObject()`
       and other webhook fixtures switched to numeric token counts, and the duplicate and invalid-payload
       tests. Tech spec: Model and contracts, Tests. Reviewer: Opus.
