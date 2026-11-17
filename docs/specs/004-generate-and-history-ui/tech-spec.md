@@ -1,6 +1,6 @@
 # 004 Generate and history UI: tech spec
 
-Status: **approved** · 2026-11-16 · PRD: [prd.md](prd.md)
+Status: **implemented** · 2026-11-16 · PRD: [prd.md](prd.md)
 
 Implements ADR 0006 (estimate shown before submit), ADR 0013 (image storage), ADR 0014 (owner-only
 reads) and ADR 0015 (Inertia polling) on top of specs 001, 002, 003 and 008. The provider contract is

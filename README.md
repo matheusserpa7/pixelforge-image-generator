@@ -9,11 +9,12 @@ This is a take-home assessment for PromptEdit. The brief is summarised in
 [docs/product/overview.md](docs/product/overview.md) and the API in
 [docs/product/pixelforge-api.md](docs/product/pixelforge-api.md).
 
-> **Status:** specs 003 and 008 done. A signed-in user can submit a generation. A job sends it to
-> Pixelforge under the provider's limits, and a submission the provider may have accepted is never
-> failed locally. Signed webhooks, deduplicated and applied in any order, plus a polling
-> safety net, bring it to its final state, and a success is charged once. The generate and history
-> pages are next, see the [roadmap](docs/roadmap.md).
+> **Status:** specs 000 to 004 and 008 done. A signed-in user sees the estimate and maximum before
+> submitting, and follows each generation live in their history with its actual charge and image. A
+> job sends it to Pixelforge under the provider's limits, and a submission the provider may have
+> accepted is never failed locally. Signed webhooks, deduplicated and applied in any order, plus a
+> polling safety net, bring it to its final state, a success is charged once, and its image is copied
+> to our storage. Deployment is next, see the [roadmap](docs/roadmap.md).
 
 ## Run it
 

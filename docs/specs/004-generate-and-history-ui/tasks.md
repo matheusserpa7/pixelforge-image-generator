@@ -1,6 +1,6 @@
 # 004 Generate and history UI: tasks
 
-Status: **approved** · 2026-11-16 · Tech spec: [tech-spec.md](tech-spec.md)
+Status: **implemented** · 2026-11-16 · Tech spec: [tech-spec.md](tech-spec.md)
 
 - [x] **T1. Image copy and image route.** `image_path` migration, `generation_images_disk` config and
       `.env.example` line, `DownloadGenerationImage`, the `afterCommit` dispatch in
